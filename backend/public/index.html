@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Test Web Socket</title>
+</head>
+<body>
+<p id="msg"></p>
+
+<script>
+    const uri = 'ws://localhost:8080/hanabi/ws'
+
+    // if (loc.protocol === 'https:') {
+    //     uri = 'wss:'
+    // }
+    const ws = new WebSocket(uri)
+    ws.onopen = function () {
+        console.log('Connected')
+    }
+    ws.onmessage = function (evt) {
+        const out = document.getElementById('msg');
+        out.innerHTML += evt.data + '<br>';
+    }
+
+    setInterval(function () {
+        ws.send(JSON.stringify({
+            action: "create-room",
+        }));
+    }, 1000);
+</script>
+</body>
+</html>
