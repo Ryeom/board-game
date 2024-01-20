@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/op/go-logging"
 	"os"
 	"strings"
@@ -11,7 +12,7 @@ var ServerLogDesc *os.File
 var AccessLogDesc *os.File
 
 const (
-	ProjectName       = "platform-core-support-API"
+	ProjectName       = "hanabi_log"
 	DefaultLogPath    = ""
 	ServerLogFileName = "server.log"
 	AccessLogFileName = "access.log"
@@ -67,7 +68,18 @@ func checkFilePath(filePath string) {
 		if createErr != nil {
 			panic(createErr)
 		}
-		fmt.Println(file.Name())
+		fmt.Println("created ", file.Name())
+	}
+}
+
+func CreateCustomLogConfig() middleware.LoggerConfig {
+	return middleware.LoggerConfig{
+		Skipper: middleware.DefaultSkipper,
+		Format: `{"transaction_id":"${header:transaction-id}", "status_code":${status}, "E":"${error}"` +
+			`, "REMOTE_ADDR":"${remote_ip}", "Client-Ip":"${header:Client-Ip}", "time":"${time_custom}", "return_time":"${latency_human}"` +
+			`, "I":${bytes_in}, "O":${bytes_out}, "method":"${method}", "path":"${uri}"}` + "\n",
+		CustomTimeFormat: DashboardTimeFormat,
+		Output:           AccessLogDesc,
 	}
 }
 
