@@ -19,6 +19,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func SocketHandler(c echo.Context) error {
+	// TODO : 나중에 유저 별도로 참여자에
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		log.Logger.Error("Error Upgrade : ", err)
@@ -30,6 +31,8 @@ func SocketHandler(c echo.Context) error {
 	// TODO : 참여자 생성하지않았으면 참여자 생성 혹은 ip가 중복이 있다면 ip할당된 참여자목록 찾아서 해당 참여자로 재연결
 	fmt.Println("Connected socket", c.RealIP())
 
+	// 이미 id를 만든 상태로 접근함
+	hanabi.CreateAttender("201.11.2.14", "ryeom", ws)
 	for {
 		var err error
 		// Read
@@ -44,8 +47,8 @@ func SocketHandler(c echo.Context) error {
 			c.Logger().Error(err)
 		}
 		act.Response = make(chan string)
-		hanabi.ActionExecution <- &act
 
+		//hanabi.ActionExecution <- &act
 		resp := <-act.Response
 		// write
 		err = ws.WriteMessage(websocket.TextMessage, []byte(resp))

@@ -25,7 +25,8 @@
 
     setInterval(function () {
         ws.send(JSON.stringify({
-            action: "create-room",
+            name: "create",
+            target : "attender"
         }));
     }, 1000);
 </script>

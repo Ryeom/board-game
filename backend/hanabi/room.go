@@ -15,10 +15,11 @@ const (
 
 type Room struct {
 	MaxAttender int
-	Attender    []Attender
+	Attender    []string
 	Status      int
 	Name        string
 	Leader      string
+	GameId      string
 }
 
 var Rooms map[string]*Room
@@ -27,8 +28,23 @@ func initializeRooms() {
 	Rooms = map[string]*Room{}
 	log.Logger.Info("Finished create Room List")
 }
+func roomAction(act *Action) string {
+	switch act.Name {
+	case "create":
+		createRoom("", "")
+	case "exit":
+		exitRoom("")
+	case "enter":
+		enterRoom("", "")
 
-func CreateRoom(constructor, roomName string) {
+	}
+	return "erorr"
+}
+func enterRoom(id, roomId string) {
+	Rooms[roomId].Attender = append(Rooms[roomId].Attender, id)
+}
+
+func createRoom(constructor, roomName string) {
 	r := Room{
 		MaxAttender: MaxAttender,
 		Status:      WAITING,

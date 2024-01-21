@@ -2,6 +2,8 @@ package util
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"io"
 )
@@ -41,4 +43,11 @@ func newRandomFromReader(r io.Reader) (UUID, error) {
 	uuid[6] = (uuid[6] & 0x0f) | 0x40 // Version 4
 	uuid[8] = (uuid[8] & 0x3f) | 0x80 // Variant is 10
 	return uuid, nil
+}
+
+func GetSHA256(bv []byte) string {
+	hasher := sha256.New()
+	hasher.Write(bv)
+	sha := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
+	return sha
 }
