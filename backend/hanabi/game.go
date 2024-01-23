@@ -7,6 +7,7 @@ import (
 )
 
 type Game struct {
+	GameId     string
 	Round      int
 	Log        []Progress
 	Attenders  []*Attender

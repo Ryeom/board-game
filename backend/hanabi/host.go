@@ -1,6 +1,9 @@
 package hanabi
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/Ryeom/hanabi/util"
+)
 
 //var ActionExecution chan *Action
 
@@ -44,4 +47,22 @@ func execute(act *Action) string {
 
 	}
 	return "error"
+}
+
+type Scenario struct {
+	RoomId     string
+	ScenarioId string
+	Chapters   []Chapter
+}
+
+type Chapter struct {
+}
+
+func base(roomid string) Scenario {
+	s := Scenario{
+		RoomId:     roomid,
+		ScenarioId: util.GetUUID(),
+		Chapters:   []Chapter{},
+	}
+	return s
 }
