@@ -7,7 +7,6 @@ import (
 	"github.com/Ryeom/hanabi/server"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"runtime"
 )
 
 func init() {
@@ -15,8 +14,6 @@ func init() {
 }
 
 func main() {
-
-	runtime.GOMAXPROCS(runtime.NumCPU())
 	fmt.Println("start hanabi game")
 	l.InitializeApplicationLog()
 

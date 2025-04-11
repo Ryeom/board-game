@@ -1,49 +1,74 @@
 package hanabi
 
-import (
-	"github.com/Ryeom/hanabi/util"
+import "math/rand"
+
+/*	카드의 속성(색, 숫자), 초기 덱 구성 등 */
+type Color string
+
+const (
+	Red    Color = "red"
+	Green  Color = "green"
+	Blue   Color = "blue"
+	White  Color = "white"
+	Yellow Color = "yellow"
 )
 
-type CardSet []Card
-
 type Card struct {
-	Color      string
-	Number     int
-	KnowColor  bool
-	KnowNumber bool
+	Color  Color `json:"color"`
+	Number int   `json:"number"`
 }
 
-func createNewCardSet() CardSet {
-	colors := []string{"green", "white", "yellow", "red", "blue"}
-	numbers := map[int]int{1: 3, 2: 2, 3: 2, 4: 2, 5: 1}
-	temp := CardSet{}
+func GenerateDeck() []*Card {
+	cardCounts := map[int]int{
+		1: 3,
+		2: 2,
+		3: 2,
+		4: 2,
+		5: 1,
+	}
+
+	colors := []Color{Red, Green, Blue, Yellow, White}
+	var deck []*Card
+
 	for _, color := range colors {
-		for cardNumber, cnt := range numbers {
-			for i := 0; i < cnt; i++ {
-				temp = append(temp, Card{Color: color, Number: cardNumber})
+		for num, count := range cardCounts {
+			for i := 0; i < count; i++ {
+				deck = append(deck, &Card{
+					Color:  color,
+					Number: num,
+				})
 			}
 		}
 	}
-	// 중복없는 난수 생성
-	var t []int
-	length := len(temp)
-	index := 0
-	for {
-		n := util.RandomNumber(1, length+1)
-		// 포함되지않으면 옮기고 0으로 변경
-		if !util.IntContains(t, n) {
-			t = append(t, n)
-			index++
-		}
-		if index == length {
-			break
+
+	shuffle(deck)
+	return deck
+}
+
+func shuffle(cards []*Card) {
+	rand.Shuffle(len(cards), func(i, j int) {
+		cards[i], cards[j] = cards[j], cards[i]
+	})
+}
+
+func DealInitialCards(players []*Attender, deck *[]*Card) {
+	cardCount := 5
+	if len(players) >= 4 {
+		cardCount = 4
+	}
+
+	for _, player := range players {
+		for i := 0; i < cardCount; i++ {
+			if len(*deck) == 0 {
+				return // 덱 다 썼으면 종료
+			}
+			player.Hand = append(player.Hand, (*deck)[0])
+			*deck = (*deck)[1:]
 		}
 	}
-	// 난수에 맞춰 카드배열
-	set := make(CardSet, len(temp)) // 원본과 동일한 크기의 슬라이스 생성
-	//copy(set, temp) // 복사안함
-	for i, n := range t {
-		set[n-1] = temp[i]
-	}
-	return set
+}
+
+type Hint struct {
+	ColorKnown  *Color `json:"colorKnown,omitempty"`  // 색상이 알려졌을 경우
+	NumberKnown *int   `json:"numberKnown,omitempty"` // 숫자가 알려졌을 경우
 }
