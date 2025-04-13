@@ -14,8 +14,10 @@ const (
 )
 
 type Card struct {
-	Color  Color `json:"color"`
-	Number int   `json:"number"`
+	Color       Color `json:"color"`
+	Number      int   `json:"number"`
+	ColorKnown  bool  `json:"colorKnown"`
+	NumberKnown bool  `json:"numberKnown"`
 }
 
 func GenerateDeck() []*Card {
@@ -71,4 +73,30 @@ func DealInitialCards(players []*Attender, deck *[]*Card) {
 type Hint struct {
 	ColorKnown  *Color `json:"colorKnown,omitempty"`  // 색상이 알려졌을 경우
 	NumberKnown *int   `json:"numberKnown,omitempty"` // 숫자가 알려졌을 경우
+}
+
+func GiveHintByColor(player *Attender, color Color) int {
+	count := 0
+	for _, card := range player.Hand {
+		if card.Color == color {
+			if !card.ColorKnown {
+				card.ColorKnown = true
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func GiveHintByNumber(player *Attender, number int) int {
+	count := 0
+	for _, card := range player.Hand {
+		if card.Number == number {
+			if !card.NumberKnown {
+				card.NumberKnown = true
+				count++
+			}
+		}
+	}
+	return count
 }
