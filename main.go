@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/Ryeom/hanabi/hanabi"
-	l "github.com/Ryeom/hanabi/log"
-	"github.com/Ryeom/hanabi/server"
+	"github.com/Ryeom/board-game/game"
+	l "github.com/Ryeom/board-game/log"
+	"github.com/Ryeom/board-game/server"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	fmt.Println("start hanabi game")
+	fmt.Println("start board game")
 	l.InitializeApplicationLog()
 
 	e := echo.New()
@@ -22,7 +22,7 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
 
-	hanabi.Initialize()
+	game.Initialize()
 	server.Initialize(e)
 
 	e.Logger.Fatal(e.Start(":8080"))

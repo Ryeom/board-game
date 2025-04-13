@@ -1,4 +1,4 @@
-module github.com/Ryeom/hanabi
+module github.com/Ryeom/board-game
 
 go 1.19
 

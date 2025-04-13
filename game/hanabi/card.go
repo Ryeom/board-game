@@ -1,6 +1,9 @@
 package hanabi
 
-import "math/rand"
+import (
+	"github.com/Ryeom/board-game/game/room"
+	"math/rand"
+)
 
 /*	카드의 속성(색, 숫자), 초기 덱 구성 등 */
 type Color string
@@ -53,7 +56,7 @@ func shuffle(cards []*Card) {
 	})
 }
 
-func DealInitialCards(players []*Attender, deck *[]*Card) {
+func DealInitialCards(players []*room.Attender, deck *[]*Card) {
 	cardCount := 5
 	if len(players) >= 4 {
 		cardCount = 4
@@ -62,9 +65,17 @@ func DealInitialCards(players []*Attender, deck *[]*Card) {
 	for _, player := range players {
 		for i := 0; i < cardCount; i++ {
 			if len(*deck) == 0 {
-				return // 덱 다 썼으면 종료
+				return
 			}
-			player.Hand = append(player.Hand, (*deck)[0])
+			// 원본 덱에서 카드 뽑고 복사해서 플레이어에게 줌
+			original := (*deck)[0]
+			copyCard := &Card{
+				Color:       original.Color,
+				Number:      original.Number,
+				ColorKnown:  false,
+				NumberKnown: false,
+			}
+			player.Hand = append(player.Hand, copyCard)
 			*deck = (*deck)[1:]
 		}
 	}
@@ -75,7 +86,7 @@ type Hint struct {
 	NumberKnown *int   `json:"numberKnown,omitempty"` // 숫자가 알려졌을 경우
 }
 
-func GiveHintByColor(player *Attender, color Color) int {
+func GiveHintByColor(player *room.Attender, color Color) int {
 	count := 0
 	for _, card := range player.Hand {
 		if card.Color == color {
@@ -88,7 +99,7 @@ func GiveHintByColor(player *Attender, color Color) int {
 	return count
 }
 
-func GiveHintByNumber(player *Attender, number int) int {
+func GiveHintByNumber(player *room.Attender, number int) int {
 	count := 0
 	for _, card := range player.Hand {
 		if card.Number == number {
