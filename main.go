@@ -22,7 +22,7 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
 
-	game.Initialize()
+	game.Initialize(e)
 	server.Initialize(e)
 
 	e.Logger.Fatal(e.Start(":8080"))

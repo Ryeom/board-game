@@ -1,25 +1,26 @@
 package hanabi
 
+import (
+	"time"
+)
+
 type State struct {
-	Fireworks   map[Color]int // 색상별로 쌓인 숫자 (1~5)
-	HintTokens  int           // 남은 힌트 토큰
-	MissTokens  int           // 남은 실수 토큰
-	TurnIndex   int           // 현재 턴 주인공 (players[TurnIndex])
-	Deck        []*Card       // 남은 카드
-	DiscardPile []*Card       // 버려진 카드들
-	GameStarted bool          // 게임 시작 여부
-	GameOver    bool          // 게임 종료 여부
-	LastPlayer  int           // 마지막 플레이어 인덱스 (덱 다 쓰면 한 바퀴 더 돌기용)
+	Fireworks   map[Color]int      `json:"fireworks"`
+	HintTokens  int                `json:"hintTokens"`
+	MissTokens  int                `json:"missTokens"`
+	TurnIndex   int                `json:"turnIndex"`
+	Deck        []*Card            `json:"-"`
+	DiscardPile []*Card            `json:"discardPile"`
+	GameStarted bool               `json:"gameStarted"`
+	GameOver    bool               `json:"gameOver"`
+	LastPlayer  int                `json:"lastPlayer"`
+	PlayerHands map[string][]*Card `json:"playerHands"` // player ID → cards
 }
 
 func NewState(deck []*Card) *State {
 	return &State{
 		Fireworks: map[Color]int{
-			Red:    0,
-			Green:  0,
-			Blue:   0,
-			White:  0,
-			Yellow: 0,
+			Red: 0, Green: 0, Blue: 0, Yellow: 0, White: 0,
 		},
 		HintTokens:  8,
 		MissTokens:  3,
@@ -28,5 +29,67 @@ func NewState(deck []*Card) *State {
 		DiscardPile: []*Card{},
 		GameStarted: false,
 		GameOver:    false,
+		PlayerHands: make(map[string][]*Card),
 	}
+}
+
+func DealInitialCards(players []string, deck *[]*Card, hands map[string][]*Card) {
+	cardCount := 5
+	if len(players) >= 4 {
+		cardCount = 4
+	}
+
+	for _, player := range players {
+		hand := make([]*Card, 0, cardCount)
+		for i := 0; i < cardCount; i++ {
+			if len(*deck) == 0 {
+				break
+			}
+			original := (*deck)[0]
+			copy := &Card{
+				Color:       original.Color,
+				Number:      original.Number,
+				ColorKnown:  false,
+				NumberKnown: false,
+			}
+			hand = append(hand, copy)
+			*deck = (*deck)[1:]
+		}
+		hands[player] = hand
+	}
+}
+
+func GenerateDeck() []*Card {
+	cardCounts := map[int]int{
+		1: 3,
+		2: 2,
+		3: 2,
+		4: 2,
+		5: 1,
+	}
+	colors := []Color{Red, Green, Blue, Yellow, White}
+	var deck []*Card
+	for _, color := range colors {
+		for number, count := range cardCounts {
+			for i := 0; i < count; i++ {
+				deck = append(deck, &Card{
+					Color:  color,
+					Number: number,
+				})
+			}
+		}
+	}
+	shuffle(deck)
+	return deck
+}
+
+func shuffle(cards []*Card) {
+	for i := len(cards) - 1; i > 0; i-- {
+		j := randInt(0, i+1)
+		cards[i], cards[j] = cards[j], cards[i]
+	}
+}
+
+func randInt(min, max int) int {
+	return min + int(time.Now().UnixNano())%(max-min)
 }

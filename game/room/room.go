@@ -14,7 +14,7 @@ const (
 
 type Room struct {
 	ID        string
-	Players   []*Attender // 추후 별도 정의
+	Players   []*Attender
 	GameMode  GameMode
 	Engine    GameEngine
 	State     any

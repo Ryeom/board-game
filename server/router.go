@@ -6,25 +6,16 @@ import (
 )
 
 func Initialize(e *echo.Echo) {
-	e.Static("/", "../public")
 	apis := e.Group("/hanabi")
 	{
 		route(apis)
 	}
 
-	//http.Handle("/", http.FileServer(http.Dir("static")))
-	//http.HandleFunc("/ws", socketHandler)
-	//port := "8080"
-	//if err := http.ListenAndServe(":"+port, nil); err != nil {
-	//	log.Fatal(err)
-	//}
 }
 
 func route(g *echo.Group) {
 	g.GET("/healthCheck", healthCheck)
-	g.GET("/ws", SocketHandler)
-	//
-	//g.GET()
+
 }
 
 func healthCheck(c echo.Context) error {
