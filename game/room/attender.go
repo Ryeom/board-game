@@ -1,26 +1,16 @@
+// room/attender.go
 package room
 
-import (
-	"github.com/gorilla/websocket"
-	"time"
-)
-
 type Attender struct {
-	ID         string          `json:"id"`
-	Name       string          `json:"name"`
-	IsHost     bool            `json:"isHost"`
-	JoinedAt   int64           `json:"joinedAt"`
-	SocketID   string          `json:"socketId"`
-	Connection *websocket.Conn `json:"-"`
-	Ready      bool            `json:"ready"`
+	ID     string
+	Name   string
+	IsHost bool
 }
 
-func NewAttender(socketID, name string, isHost bool) *Attender {
+func NewAttender(id, name string, isHost bool) *Attender {
 	return &Attender{
-		ID:       socketID,
-		Name:     name,
-		IsHost:   isHost,
-		JoinedAt: time.Now().Unix(),
-		SocketID: socketID,
+		ID:     id,
+		Name:   name,
+		IsHost: isHost,
 	}
 }

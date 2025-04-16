@@ -1,7 +1,7 @@
 package room
 
 import (
-	"sync"
+	"github.com/Ryeom/board-game/session"
 	"time"
 )
 
@@ -9,11 +9,11 @@ type GameMode string
 
 const (
 	GameModeHanabi GameMode = "hanabi"
-	GameModeUno    GameMode = "uno"
 )
 
 type Room struct {
 	ID        string
+	Host      *Attender
 	Players   []*Attender
 	GameMode  GameMode
 	Engine    GameEngine
@@ -21,51 +21,30 @@ type Room struct {
 	CreatedAt time.Time
 }
 
-type RoomManager struct {
-	rooms map[string]*Room
-	lock  sync.RWMutex
-}
+var rooms = map[string]*Room{}
 
-func NewRoomManager() *RoomManager {
-	return &RoomManager{
-		rooms: make(map[string]*Room),
-	}
-}
-
-func (m *RoomManager) CreateRoom(id string, host *Attender, mode GameMode, engine GameEngine) *Room {
-	room := &Room{
-		ID:        id,
+func CreateRoom(roomID string, user *session.UserSession) *Room {
+	host := NewAttender(user.ID, user.Name, true)
+	r := &Room{
+		ID:        roomID,
+		Host:      host,
 		Players:   []*Attender{host},
-		GameMode:  mode,
-		Engine:    engine,
+		GameMode:  GameModeHanabi,
 		CreatedAt: time.Now(),
 	}
-	m.lock.Lock()
-	m.rooms[id] = room
-	m.lock.Unlock()
-	return room
+	rooms[roomID] = r
+	return r
 }
 
-func (m *RoomManager) GetRoom(id string) (*Room, bool) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	r, ok := m.rooms[id]
-	return r, ok
-}
-
-func (m *RoomManager) DeleteRoom(id string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	delete(m.rooms, id)
-}
-
-func (m *RoomManager) ListRooms() []*Room {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	list := make([]*Room, 0, len(m.rooms))
-	for _, r := range m.rooms {
-		list = append(list, r)
+func JoinRoom(roomID string, user *session.UserSession) *Room {
+	if r, ok := rooms[roomID]; ok {
+		r.Players = append(r.Players, NewAttender(user.ID, user.Name, false))
+		return r
 	}
-	return list
+	return nil
+}
+
+func GetRoom(roomID string) (*Room, bool) {
+	r, ok := rooms[roomID]
+	return r, ok
 }
