@@ -1,4 +1,3 @@
-// session/manager.go
 package session
 
 import (

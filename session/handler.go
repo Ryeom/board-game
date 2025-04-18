@@ -1,4 +1,3 @@
-// session/handler.go
 package session
 
 import (
@@ -41,12 +40,7 @@ func RegisterWebSocket(e *echo.Echo) {
 				break
 			}
 
-			var event struct {
-				Type   string         `json:"type"`
-				RoomID string         `json:"roomId"`
-				Name   string         `json:"name"`
-				Data   map[string]any `json:"data"`
-			}
+			var event SocketEvent
 			if err := json.Unmarshal(msg, &event); err != nil {
 				fmt.Println("⚠️ invalid message format:", err)
 				continue
@@ -58,12 +52,7 @@ func RegisterWebSocket(e *echo.Echo) {
 	})
 }
 
-func handleEvent(user *UserSession, event struct {
-	Type   string
-	RoomID string
-	Name   string
-	Data   map[string]any
-}) {
+func handleEvent(user *UserSession, event SocketEvent) {
 	switch event.Type {
 	case "create_room":
 		fmt.Println("🛠 creating room:", event.RoomID, "by", event.Name)
