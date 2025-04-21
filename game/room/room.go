@@ -1,9 +1,7 @@
+// room/room.go
 package room
 
-import (
-	"github.com/Ryeom/board-game/session"
-	"time"
-)
+import "time"
 
 type GameMode string
 
@@ -13,8 +11,8 @@ const (
 
 type Room struct {
 	ID        string
-	Host      *Attender
-	Players   []*Attender
+	Host      Player
+	Players   []Player
 	GameMode  GameMode
 	Engine    GameEngine
 	State     any
@@ -23,12 +21,11 @@ type Room struct {
 
 var rooms = map[string]*Room{}
 
-func CreateRoom(roomID string, user *session.UserSession) *Room {
-	host := NewAttender(user.ID, user.Name, true)
+func CreateRoom(roomID string, host Player) *Room {
 	r := &Room{
 		ID:        roomID,
 		Host:      host,
-		Players:   []*Attender{host},
+		Players:   []Player{host},
 		GameMode:  GameModeHanabi,
 		CreatedAt: time.Now(),
 	}
@@ -36,9 +33,9 @@ func CreateRoom(roomID string, user *session.UserSession) *Room {
 	return r
 }
 
-func JoinRoom(roomID string, user *session.UserSession) *Room {
+func JoinRoom(roomID string, user Player) *Room {
 	if r, ok := rooms[roomID]; ok {
-		r.Players = append(r.Players, NewAttender(user.ID, user.Name, false))
+		r.Players = append(r.Players, user)
 		return r
 	}
 	return nil

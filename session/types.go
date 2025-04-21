@@ -16,3 +16,7 @@ type SocketEvent struct {
 	Name   string         `json:"name"`
 	Data   map[string]any `json:"data"`
 }
+
+func (u *UserSession) GetID() string    { return u.ID }
+func (u *UserSession) GetName() string  { return u.Name }
+func (u *UserSession) IsHostUser() bool { return u.IsHost }
