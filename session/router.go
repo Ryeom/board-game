@@ -1,35 +1,35 @@
-package server
+package session
 
 import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 )
 
-func Initialize(e *echo.Echo) {
-	apis := e.Group("/hanabi")
+func InitializeRouter(e *echo.Echo) {
+	bg := e.Group("/board-game")
 	{
-		route(apis)
+		bg.GET("/healthCheck", healthCheck)
+		registerWebSocket(bg)
+		bg.GET("/api/rooms", GetRoomList)
+		bg.POST("/api/rooms", CreateRoom)
+		bg.PATCH("/api/rooms/:roomId", UpdateRoom)
+		bg.DELETE("/api/rooms/:roomId", DeleteRoom)
 	}
 
 }
 
-func route(g *echo.Group) {
-	g.GET("/healthCheck", healthCheck)
-
-}
-
+// @Summary Health Check
+// @Description 서버 상태 확인
+// @Tags Health
+// @Accept json
+// @Produce json
+// @Success 200 {object} session.HttpResult
+// @Router /board-game/healthCheck [get]
 func healthCheck(c echo.Context) error {
 	result := HttpResult{
 		Code: 200,
 		Msg:  "OK",
 	}
-	//b, _ := c.Request().GetBody()
-
-	//h, err := json.Marshal(c.Request().Header)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-
 	var param struct {
 		Data interface{} `json:"data"`
 	}

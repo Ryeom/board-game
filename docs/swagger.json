@@ -1,0 +1,43 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/board-game/healthCheck": {
+            "get": {
+                "description": "서버 상태 확인",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/session.HttpResult"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "session.HttpResult": {
+            "type": "object",
+            "properties": {
+                "code": {},
+                "data": {},
+                "msg": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,27 @@
+definitions:
+  session.HttpResult:
+    properties:
+      code: {}
+      data: {}
+      msg:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /board-game/healthCheck:
+    get:
+      consumes:
+      - application/json
+      description: 서버 상태 확인
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/session.HttpResult'
+      summary: Health Check
+      tags:
+      - Health
+swagger: "2.0"

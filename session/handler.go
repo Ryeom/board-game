@@ -15,7 +15,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func RegisterWebSocket(e *echo.Echo) {
+func registerWebSocket(e *echo.Group) {
 	e.GET("/ws", func(c echo.Context) error {
 		conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 		if err != nil {

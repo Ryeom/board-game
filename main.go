@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/Ryeom/board-game/game"
+	_ "github.com/Ryeom/board-game/docs" // swagger docs import
 	l "github.com/Ryeom/board-game/log"
-	"github.com/Ryeom/board-game/server"
+	"github.com/Ryeom/board-game/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 func init() {
@@ -21,9 +22,9 @@ func main() {
 	e.Use(middleware.CORS())
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
-	game.Initialize(e)
-	server.Initialize(e)
+	session.InitializeRouter(e)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
