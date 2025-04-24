@@ -22,7 +22,7 @@ const (
 
 var Logger *logging.Logger
 
-func InitializeApplicationLog() {
+func InitializeApplicationLog() error {
 	var err error
 	logPath := DefaultLogPath + ProjectName + "/"
 	checkDirectoryPath(logPath)
@@ -32,11 +32,11 @@ func InitializeApplicationLog() {
 	checkFilePath(accessLogPath)
 	ServerLogDesc, err = os.OpenFile(serverLogPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	AccessLogDesc, err = os.OpenFile(accessLogPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	Logger = logging.MustGetLogger(ProjectName)
@@ -51,6 +51,7 @@ func InitializeApplicationLog() {
 
 	Logger.Info(banner)
 	Logger.Info("Process initialize ... Env :")
+	return err
 }
 
 func checkDirectoryPath(dirPath string) {

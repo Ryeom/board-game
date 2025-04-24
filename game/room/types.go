@@ -36,7 +36,6 @@ func NewManager() Manager {
 	//return &InMemoryManager{
 	//	rooms: make(map[string]*Room),
 	//}
-
 	return NewRedisManager()
 }
 

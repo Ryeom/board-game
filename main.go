@@ -6,18 +6,32 @@ import (
 	l "github.com/Ryeom/board-game/log"
 	redis "github.com/Ryeom/board-game/redis"
 	"github.com/Ryeom/board-game/session"
+	"github.com/Ryeom/board-game/util"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 func init() {
-
+	/* 1. setting environment */
+	err := util.SetEnv()
+	if err != nil {
+		panic(err)
+	}
+	/* 2. setting log  */
+	err = l.InitializeApplicationLog()
+	if err != nil {
+		panic(err)
+	}
+	/* 3. setting config */
+	err = util.SetConfig()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
 	fmt.Println("start board game")
-	l.InitializeApplicationLog()
 
 	redis.Initialize()
 	e := echo.New()
