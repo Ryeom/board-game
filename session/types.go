@@ -20,3 +20,11 @@ type SocketEvent struct {
 func (u *UserSession) GetID() string    { return u.ID }
 func (u *UserSession) GetName() string  { return u.Name }
 func (u *UserSession) IsHostUser() bool { return u.IsHost }
+
+type userSessionWrapper struct {
+	*UserSession
+}
+
+func (u *userSessionWrapper) GetID() string    { return u.ID }
+func (u *userSessionWrapper) GetName() string  { return u.ID }
+func (u *userSessionWrapper) IsHostUser() bool { return true }

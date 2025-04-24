@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "github.com/Ryeom/board-game/docs" // swagger docs import
 	l "github.com/Ryeom/board-game/log"
+	redis "github.com/Ryeom/board-game/redis"
 	"github.com/Ryeom/board-game/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,6 +19,7 @@ func main() {
 	fmt.Println("start board game")
 	l.InitializeApplicationLog()
 
+	redis.Initialize()
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Recover())

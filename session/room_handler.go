@@ -1,12 +1,10 @@
 package session
 
 import (
-	"github.com/Ryeom/board-game/game"
 	"github.com/Ryeom/board-game/game/room"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
-
-	"github.com/labstack/echo/v4"
 )
 
 func CreateRoom(c echo.Context) error {
@@ -24,7 +22,8 @@ func CreateRoom(c echo.Context) error {
 		Name:   req.HostName,
 		IsHost: true,
 	}
-	r := game.RoomManager.CreateRoom(req.RoomID, host)
+	wrapped := &userSessionWrapper{host}
+	r := room.CreateRoom(c.Request().Context(), req.RoomID, wrapped)
 
 	return c.JSON(Success(map[string]any{
 		"roomId":      r.ID,
@@ -36,8 +35,6 @@ func CreateRoom(c echo.Context) error {
 }
 
 func GetRoomList(c echo.Context) error {
-	rooms := game.RoomManager.ListRooms()
-
 	type roomSummary struct {
 		ID        string    `json:"id"`
 		Host      string    `json:"host"`
@@ -46,11 +43,12 @@ func GetRoomList(c echo.Context) error {
 		CreatedAt time.Time `json:"createdAt"`
 	}
 
+	rooms := room.ListRooms(c.Request().Context())
 	summary := make([]roomSummary, 0, len(rooms))
 	for _, r := range rooms {
 		summary = append(summary, roomSummary{
 			ID:        r.ID,
-			Host:      r.Host.GetName(),
+			Host:      r.Host,
 			PlayerNum: len(r.Players),
 			GameMode:  string(r.GameMode),
 			CreatedAt: r.CreatedAt,
@@ -65,18 +63,18 @@ func GetRoomList(c echo.Context) error {
 
 func DeleteRoom(c echo.Context) error {
 	roomID := c.Param("roomId")
-	_, ok := game.RoomManager.GetRoom(roomID)
+	_, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
 		return c.JSON(Failure("room not found", http.StatusNotFound))
 	}
-	game.RoomManager.DeleteRoom(roomID)
+	room.DeleteRoom(c.Request().Context(), roomID)
 	return c.JSON(Success("room deleted"))
 }
 
 func UpdateRoom(c echo.Context) error {
 	roomID := c.Param("roomId")
 
-	r, ok := game.RoomManager.GetRoom(roomID)
+	r, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
 		return c.JSON(Failure("room not found", http.StatusNotFound))
 	}
@@ -91,6 +89,7 @@ func UpdateRoom(c echo.Context) error {
 	switch req.GameMode {
 	case room.GameModeHanabi:
 		r.GameMode = req.GameMode
+		_ = room.SaveRoom(c.Request().Context(), r)
 		// TODO: r.Engine = hanabi.NewEngine() ... 등 추후 연결
 	default:
 		return c.JSON(Failure("unsupported game mode", http.StatusBadRequest))

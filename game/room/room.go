@@ -1,7 +1,9 @@
-// room/room.go
 package room
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type GameMode string
 
@@ -10,38 +12,35 @@ const (
 )
 
 type Room struct {
-	ID        string
-	Host      Player
-	Players   []Player
-	GameMode  GameMode
-	Engine    GameEngine
-	State     any
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	Host      string    `json:"host"`
+	Players   []string  `json:"players"`
+	GameMode  GameMode  `json:"gameMode"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
-var rooms = map[string]*Room{}
+var controlManager = NewManager()
 
-func CreateRoom(roomID string, host Player) *Room {
-	r := &Room{
-		ID:        roomID,
-		Host:      host,
-		Players:   []Player{host},
-		GameMode:  GameModeHanabi,
-		CreatedAt: time.Now(),
-	}
-	rooms[roomID] = r
-	return r
+func CreateRoom(ctx context.Context, id string, host Player) *Room {
+	return controlManager.CreateRoom(ctx, id, host)
 }
 
-func JoinRoom(roomID string, user Player) *Room {
-	if r, ok := rooms[roomID]; ok {
-		r.Players = append(r.Players, user)
-		return r
-	}
-	return nil
+func GetRoom(ctx context.Context, id string) (*Room, bool) {
+	return controlManager.GetRoom(ctx, id)
 }
 
-func GetRoom(roomID string) (*Room, bool) {
-	r, ok := rooms[roomID]
-	return r, ok
+func DeleteRoom(ctx context.Context, id string) {
+	controlManager.DeleteRoom(ctx, id)
+}
+
+func ListRooms(ctx context.Context) []*Room {
+	return controlManager.ListRooms(ctx)
+}
+
+func SaveRoom(ctx context.Context, r *Room) error {
+	return controlManager.SaveRoom(ctx, r)
+}
+
+func JoinRoom(ctx context.Context, roomID string, userID string) (*Room, bool) {
+	return controlManager.JoinRoom(ctx, roomID, userID)
 }
