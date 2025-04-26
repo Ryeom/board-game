@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	redisutil "github.com/Ryeom/board-game/redis"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"log"
 	"sync"
 	"time"
 )
 
-// Player 인터페이스는 방에 참여 가능한 유저의 최소 요구 정보를 정의합니다.
 type Player interface {
 	GetID() string
 	GetName() string
@@ -32,11 +33,10 @@ type InMemoryManager struct {
 	rooms map[string]*Room
 }
 
-func NewManager() Manager {
-	//return &InMemoryManager{
-	//	rooms: make(map[string]*Room),
-	//}
-	return NewRedisManager()
+func NewInMemoryManager() *InMemoryManager {
+	return &InMemoryManager{
+		rooms: make(map[string]*Room),
+	}
 }
 
 func (m *InMemoryManager) CreateRoom(ctx context.Context, roomID string, host Player) *Room {
@@ -100,20 +100,34 @@ func (m *InMemoryManager) JoinRoom(ctx context.Context, roomID string, userID st
 	return r, true
 }
 
-// RedisManager 구현
-
 type RedisManager struct {
-	client *redis.Client
+	Client *redis.Client
 }
 
 func NewRedisManager() *RedisManager {
-
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       2,
-	})
-	return &RedisManager{client: client}
+	addr := viper.GetString("redis.addr")
+	c, err := redisutil.CreateClient(addr, "", viper.GetInt("redis.room-index"))
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			keys, err := c.Keys(ctx, "room:*").Result()
+			if err != nil {
+				log.Println(err)
+			}
+			for _, key := range keys {
+				fmt.Println(key)
+			}
+			fmt.Println("-----------------------------")
+			cancel()
+			time.Sleep(3 * time.Second)
+		}
+	}()
+	return &RedisManager{
+		Client: c,
+	}
 }
 
 func (r *RedisManager) CreateRoom(ctx context.Context, roomID string, host Player) *Room {
@@ -131,7 +145,7 @@ func (r *RedisManager) CreateRoom(ctx context.Context, roomID string, host Playe
 }
 
 func (r *RedisManager) GetRoom(ctx context.Context, roomID string) (*Room, bool) {
-	val, err := r.client.Get(ctx, "room:"+roomID).Result()
+	val, err := r.Client.Get(ctx, "room:"+roomID).Result()
 	if err != nil {
 		return nil, false
 	}
@@ -143,17 +157,17 @@ func (r *RedisManager) GetRoom(ctx context.Context, roomID string) (*Room, bool)
 }
 
 func (r *RedisManager) DeleteRoom(ctx context.Context, roomID string) {
-	r.client.Del(ctx, "room:"+roomID)
+	r.Client.Del(ctx, "room:"+roomID)
 }
 
 func (r *RedisManager) ListRooms(ctx context.Context) []*Room {
-	keys, err := r.client.Keys(ctx, "room:*").Result()
+	keys, err := r.Client.Keys(ctx, "room:*").Result()
 	if err != nil {
 		return nil
 	}
 	var rooms []*Room
 	for _, key := range keys {
-		val, err := r.client.Get(ctx, key).Result()
+		val, err := r.Client.Get(ctx, key).Result()
 		if err != nil {
 			continue
 		}
@@ -170,7 +184,11 @@ func (r *RedisManager) SaveRoom(ctx context.Context, room *Room) error {
 	if err != nil {
 		return err
 	}
-	return r.client.Set(ctx, "room:"+room.ID, b, 0).Err()
+	err = r.Client.Set(ctx, room.ID, b, 0).Err()
+	if err != nil {
+		fmt.Println("<UNK>", err)
+	}
+	return nil
 }
 
 func (r *RedisManager) JoinRoom(ctx context.Context, roomID string, userID string) (*Room, bool) {

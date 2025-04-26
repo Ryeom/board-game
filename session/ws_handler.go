@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/Ryeom/board-game/game/room"
 
+	"net"
+
 	"github.com/Ryeom/board-game/util"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -26,27 +28,50 @@ func registerWebSocket(e *echo.Group) {
 			return err
 		}
 		defer conn.Close()
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			return nil
+		})
 
-		socketID := c.RealIP() + conn.RemoteAddr().String()
+		socketId := generateSocketID(c, conn.RemoteAddr())
+		user := CreateUserSession(conn, socketId)
 
-		user := &UserSession{
-			ID:         socketID,
-			Name:       c.Request().Header.Get("X-User-Name"), // 또는 쿠키에서 꺼내도 됨
-			Connection: conn,
+		// 최초 identify 메시지 수신
+		var initData websocketInitData
+		if _, msg, err := conn.ReadMessage(); err != nil {
+			return err
+		} else if err := json.Unmarshal(msg, &initData); err != nil {
+			return err
 		}
-		fmt.Println(user)
-		cookie, err := c.Cookie("user_name")
-		if err == nil {
+
+		// identify 타입 검증
+		if initData.Type != "identify" {
+			return echo.NewHTTPError(http.StatusBadRequest, "expected identify event")
+		}
+		user.Name = initData.Name
+
+		// 쿠키가 있으면 쿠키 우선 적용
+		if cookie, err := c.Cookie("user_name"); err == nil {
 			user.Name = cookie.Value
 		}
-		Register(user)
-		fmt.Println("🔌 Connected:", user.Name)
 
+		Register(user)
+		fmt.Printf(
+			"[Connected] ID: %s | Name: %s | IP: %s | Time: %s\n",
+			user.ID, user.Name, user.IP, user.ConnectedAt.Format(time.RFC3339),
+		)
+
+		// 지속적인 메시지 수신 루프
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				fmt.Println(time.Now(), "❌ Disconnected:", err)
-				Unregister(socketID)
+				Unregister(socketId)
+				fmt.Printf(
+					"[Disconnected] ID: %s | Name: %s | Room: %s | LastPingAt: %s\n",
+					user.ID, user.Name, user.RoomID, user.LastPingAt.Format(time.RFC3339),
+				)
 				break
 			}
 
@@ -60,16 +85,16 @@ func registerWebSocket(e *echo.Group) {
 		}
 		return nil
 	})
+
 }
 
 func handleEvent(user *UserSession, event SocketEvent) {
 	ctx := context.Background()
 	switch event.Type {
 	case "create_room":
-		rid := "room-" + util.GetUUID()
+		rid := "room:" + util.GetUUID()
 		host := &userSessionWrapper{user}
 		r := room.CreateRoom(ctx, rid, host)
-		_ = room.SaveRoom(ctx, r)
 		user.Connection.WriteJSON(map[string]any{
 			"type": "room_created",
 			"data": map[string]string{
@@ -109,4 +134,15 @@ func handleEvent(user *UserSession, event SocketEvent) {
 	default:
 		fmt.Println("⚠️ unknown event type:", event.Type)
 	}
+}
+
+type websocketInitData struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+func generateSocketID(c echo.Context, addr net.Addr) string {
+	ip := c.RealIP()
+	remoteIP := addr.String()
+	return ip + "_" + remoteIP + "_" + time.Now().Format("20060102150405.000")
 }

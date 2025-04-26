@@ -2,6 +2,7 @@ package room
 
 import (
 	"context"
+	"github.com/spf13/viper"
 	"time"
 )
 
@@ -19,7 +20,17 @@ type Room struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-var controlManager = NewManager()
+var controlManager Manager
+
+func Initialize() {
+	mode := viper.GetString("load-info.room-mode")
+	if mode == "R" {
+		controlManager = NewRedisManager()
+	} else {
+		controlManager = NewInMemoryManager()
+	}
+
+}
 
 func CreateRoom(ctx context.Context, id string, host Player) *Room {
 	return controlManager.CreateRoom(ctx, id, host)

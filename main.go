@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	_ "github.com/Ryeom/board-game/docs" // swagger docs import
+	"github.com/Ryeom/board-game/game/room"
 	l "github.com/Ryeom/board-game/log"
-	redis "github.com/Ryeom/board-game/redis"
 	"github.com/Ryeom/board-game/session"
 	"github.com/Ryeom/board-game/util"
 	"github.com/labstack/echo/v4"
@@ -33,7 +33,8 @@ func init() {
 func main() {
 	fmt.Println("start board game")
 
-	redis.Initialize()
+	room.Initialize()
+
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Recover())
