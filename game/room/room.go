@@ -40,8 +40,8 @@ func GetRoom(ctx context.Context, id string) (*Room, bool) {
 	return controlManager.GetRoom(ctx, id)
 }
 
-func DeleteRoom(ctx context.Context, id string) {
-	controlManager.DeleteRoom(ctx, id)
+func DeleteRoom(ctx context.Context, id string) error {
+	return controlManager.DeleteRoom(ctx, id)
 }
 
 func ListRooms(ctx context.Context) []*Room {

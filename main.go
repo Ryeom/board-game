@@ -41,6 +41,7 @@ func main() {
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
+	session.InitializeBroadcaster()
 	session.InitializeRouter(e)
 
 	e.Logger.Fatal(e.Start(":8080"))

@@ -107,19 +107,30 @@ func handleEvent(user *UserSession, event SocketEvent) {
 			"data": rooms,
 		})
 	case "join_room":
-		fmt.Println("👥 joining room:", event.RoomID, "by", event.Name)
-		if r, ok := room.JoinRoom(ctx, event.RoomID, user.ID); ok {
-			user.Connection.WriteJSON(map[string]any{
-				"type": "room_joined",
-				"data": r,
-			})
-		} else {
+		fmt.Printf("👥 %s joining room: %s\n", user.Name, event.RoomID)
+
+		r, ok := room.Manager.JoinRoom(ctx, event.RoomID, user.ID)
+		if !ok {
 			user.Connection.WriteJSON(map[string]any{
 				"type":    "error",
 				"message": "room not found",
 			})
+			return
 		}
 
+		user.RoomID = r.ID
+		// 본인에게 room 정보 전송
+		user.Connection.WriteJSON(map[string]any{
+			"type": "room_joined",
+			"data": r,
+		})
+		GlobalBroadcaster.BroadcastToRoom(user.RoomID, map[string]any{
+			"type": "user_joined",
+			"data": map[string]string{
+				"userId":   user.ID,
+				"userName": user.Name,
+			},
+		})
 	case "start_game":
 		fmt.Println("🎮 start game in room:", event.RoomID)
 		// TODO: room.GetRoom(event.RoomID).Engine.StartGame()

@@ -22,7 +22,7 @@ type Player interface {
 type Manager interface {
 	CreateRoom(ctx context.Context, roomID string, host Player) *Room
 	GetRoom(ctx context.Context, roomID string) (*Room, bool)
-	DeleteRoom(ctx context.Context, roomID string)
+	DeleteRoom(ctx context.Context, roomID string) error
 	ListRooms(ctx context.Context) []*Room
 	SaveRoom(ctx context.Context, room *Room) error
 	JoinRoom(ctx context.Context, roomID string, userID string) (*Room, bool)
@@ -60,10 +60,11 @@ func (m *InMemoryManager) GetRoom(ctx context.Context, roomID string) (*Room, bo
 	return r, ok
 }
 
-func (m *InMemoryManager) DeleteRoom(ctx context.Context, roomID string) {
+func (m *InMemoryManager) DeleteRoom(ctx context.Context, roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.rooms, roomID)
+	return nil
 }
 
 func (m *InMemoryManager) ListRooms(ctx context.Context) []*Room {
@@ -156,8 +157,12 @@ func (r *RedisManager) GetRoom(ctx context.Context, roomID string) (*Room, bool)
 	return &room, true
 }
 
-func (r *RedisManager) DeleteRoom(ctx context.Context, roomID string) {
-	r.Client.Del(ctx, "room:"+roomID)
+func (r *RedisManager) DeleteRoom(ctx context.Context, roomID string) error {
+	err := r.Client.Del(ctx, "room:"+roomID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete room %s: %w", roomID, err)
+	}
+	return nil
 }
 
 func (r *RedisManager) ListRooms(ctx context.Context) []*Room {
@@ -196,7 +201,7 @@ func (r *RedisManager) JoinRoom(ctx context.Context, roomID string, userID strin
 	if !ok {
 		return nil, false
 	}
-	for _, p := range rm.Players {
+	for _, p := range rm.Players { // 유저 중복입장 방지
 		if p == userID {
 			return rm, true
 		}
