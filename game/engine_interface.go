@@ -1,4 +1,4 @@
-package room
+package game
 
 type GameEngine interface {
 	StartGame()

@@ -3,14 +3,27 @@ package redisutil
 import (
 	"context"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"log"
 )
 
 var (
 	RoomClient *redis.Client
+	UserClient *redis.Client
 )
 
-func CreateClient(addr, pw string, db int) (*redis.Client, error) {
+func Initialize() {
+	var err error
+	RoomClient, err = createClient(viper.GetString("redis.addr"), "", 0)
+	if err != nil {
+		panic(err)
+	}
+	UserClient, err = createClient(viper.GetString("redis.addr"), "", 0)
+	if err != nil {
+		panic(err)
+	}
+}
+func createClient(addr, pw string, db int) (*redis.Client, error) {
 	c := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: pw,

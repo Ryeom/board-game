@@ -1,10 +1,12 @@
-package session
+package http
 
 import (
-	"github.com/Ryeom/board-game/game/room"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
+
+	"github.com/Ryeom/board-game/room"
+	"github.com/Ryeom/board-game/server/ws"
+	"github.com/labstack/echo/v4"
 )
 
 func CreateRoom(c echo.Context) error {
@@ -14,24 +16,26 @@ func CreateRoom(c echo.Context) error {
 		HostName string `json:"hostName"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(Failure("invalid request", http.StatusBadRequest))
+		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "invalid request"})
 	}
 
-	host := &UserSession{
+	host := &ws.UserSession{
 		ID:     req.HostID,
 		Name:   req.HostName,
 		IsHost: true,
 	}
-	wrapped := &userSessionWrapper{host}
-	r := room.CreateRoom(c.Request().Context(), req.RoomID, wrapped)
+	r := room.CreateRoom(c.Request().Context(), req.RoomID, host)
 
-	return c.JSON(Success(map[string]any{
-		"roomId":      r.ID,
-		"gameMode":    r.GameMode,
-		"createdAt":   r.CreatedAt,
-		"host":        host.Name,
-		"playerCount": len(r.Players),
-	}))
+	return c.JSON(http.StatusOK, map[string]any{
+		"status": "success",
+		"data": map[string]any{
+			"roomId":      r.ID,
+			"gameMode":    r.GameMode,
+			"createdAt":   r.CreatedAt,
+			"host":        host.Name,
+			"playerCount": len(r.Players),
+		},
+	})
 }
 
 func GetRoomList(c echo.Context) error {
@@ -65,10 +69,10 @@ func DeleteRoom(c echo.Context) error {
 	roomID := c.Param("roomId")
 	_, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
-		return c.JSON(Failure("room not found", http.StatusNotFound))
+		return c.JSON(http.StatusNotFound, map[string]any{"status": "fail", "message": "room not found"})
 	}
 	room.DeleteRoom(c.Request().Context(), roomID)
-	return c.JSON(Success("room deleted"))
+	return c.JSON(http.StatusOK, map[string]any{"status": "success", "message": "room deleted"})
 }
 
 func UpdateRoom(c echo.Context) error {
@@ -76,14 +80,14 @@ func UpdateRoom(c echo.Context) error {
 
 	r, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
-		return c.JSON(Failure("room not found", http.StatusNotFound))
+		return c.JSON(http.StatusNotFound, map[string]any{"status": "fail", "message": "room not found"})
 	}
 
 	var req struct {
 		GameMode room.GameMode `json:"gameMode"`
 	}
 	if err := c.Bind(&req); err != nil || req.GameMode == "" {
-		return c.JSON(Failure("invalid gameMode", http.StatusBadRequest))
+		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "invalid gameMode"})
 	}
 
 	switch req.GameMode {
@@ -92,8 +96,8 @@ func UpdateRoom(c echo.Context) error {
 		_ = room.SaveRoom(c.Request().Context(), r)
 		// TODO: r.Engine = hanabi.NewEngine() ... 등 추후 연결
 	default:
-		return c.JSON(Failure("unsupported game mode", http.StatusBadRequest))
+		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "unsupported game mode"})
 	}
 
-	return c.JSON(Success("game mode updated"))
+	return c.JSON(http.StatusOK, map[string]any{"status": "success", "message": "game mode updated"})
 }

@@ -1,6 +1,7 @@
-package session
+package http
 
 import (
+	"github.com/Ryeom/board-game/server/ws"
 	"github.com/labstack/echo/v4"
 	"net/http"
 )
@@ -9,7 +10,8 @@ func InitializeRouter(e *echo.Echo) {
 	bg := e.Group("/board-game")
 	{
 		bg.GET("/healthCheck", healthCheck)
-		registerWebSocket(bg)
+		bg.GET("/ws", ws.Websocket)
+
 		bg.GET("/api/rooms", GetRoomList)
 		bg.POST("/api/rooms", CreateRoom)
 		bg.PATCH("/api/rooms/:roomId", UpdateRoom)
