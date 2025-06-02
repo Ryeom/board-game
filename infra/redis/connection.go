@@ -14,16 +14,24 @@ var (
 
 func Initialize() {
 	var err error
-	RoomClient, err = createClient(viper.GetString("redis.addr"), "", 0)
+	RoomClient, err = CreateClient(
+		viper.GetString("redis.addr"),
+		viper.GetString("redis.pw"),
+		1,
+	)
 	if err != nil {
 		panic(err)
 	}
-	UserClient, err = createClient(viper.GetString("redis.addr"), "", 0)
+	UserClient, err = CreateClient(
+		viper.GetString("redis.addr"),
+		viper.GetString("redis.pw"),
+		0,
+	)
 	if err != nil {
 		panic(err)
 	}
 }
-func createClient(addr, pw string, db int) (*redis.Client, error) {
+func CreateClient(addr, pw string, db int) (*redis.Client, error) {
 	c := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: pw,

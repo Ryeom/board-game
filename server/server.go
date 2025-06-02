@@ -16,6 +16,7 @@ func Initialize(e *echo.Echo) {
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
 	redisutil.Initialize()
 	http.InitializeRouter(e)
+
 	ctx := context.Background()
 	ws.GlobalBroadcaster = ws.NewRedisBroadcaster(ctx)
 

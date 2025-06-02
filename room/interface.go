@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Ryeom/board-game/infra/redis"
+	"github.com/spf13/viper"
 
 	"github.com/redis/go-redis/v9"
 	"log"
@@ -106,26 +107,28 @@ type RedisManager struct {
 }
 
 func NewRedisManager() *RedisManager {
-	//addr := viper.GetString("redis.addr")
-	//c, err := redisutil.createClient(addr, "", viper.GetInt("redis.room-index"))
-	//if err != nil {
-	//	panic(err)
-	//}
-	//go func() {
-	//	for {
-	//		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//		keys, err := c.Keys(ctx, "room:*").Result()
-	//		if err != nil {
-	//			log.Println(err)
-	//		}
-	//		for _, key := range keys {
-	//			fmt.Println(key)
-	//		}
-	//		fmt.Println("-----------------------------")
-	//		cancel()
-	//		time.Sleep(3 * time.Second)
-	//	}
-	//}()
+	addr := viper.GetString("redis.addr")
+	pw := viper.GetString("redis.pw")
+	index := viper.GetInt("redis.room-index")
+	c, err := redisutil.CreateClient(addr, pw, index)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			keys, err := c.Keys(ctx, "room:*").Result()
+			if err != nil {
+				log.Println(err)
+			}
+			for _, key := range keys {
+				fmt.Println(key)
+			}
+			fmt.Println("-----------------------------")
+			cancel()
+			time.Sleep(3 * time.Second)
+		}
+	}()
 	return &RedisManager{
 		Client: redisutil.RoomClient,
 	}
