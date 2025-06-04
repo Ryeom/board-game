@@ -77,7 +77,7 @@ func Websocket(c echo.Context) error {
 			continue
 		}
 
-		handleEvent(user, event)
+		dispatchSocketEvent(user, event)
 	}
 	return nil
 }
@@ -92,6 +92,7 @@ type SocketEvent struct {
 	RoomID string                 `json:"roomId"`
 	Name   string                 `json:"name"`
 	Data   map[string]interface{} `json:"data"`
+	Filter map[string]interface{} `json:"filter"`
 }
 
 type userSessionWrapper struct {

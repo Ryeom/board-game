@@ -24,7 +24,7 @@ func CreateRoom(c echo.Context) error {
 		Name:   req.HostName,
 		IsHost: true,
 	}
-	r := room.CreateRoom(c.Request().Context(), req.RoomID, host)
+	r := room.CreateRoom(c.Request().Context(), req.RoomID, req.HostID)
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"status": "success",
