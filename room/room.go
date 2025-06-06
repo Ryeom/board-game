@@ -47,7 +47,7 @@ func DeleteRoom(ctx context.Context, roomID string) error {
 	if rdb == nil {
 		return fmt.Errorf("redis client not found")
 	}
-	return rdb.Del(ctx, "room:"+roomID).Err()
+	return rdb.Del(ctx, roomID).Err()
 }
 
 func ListRooms(ctx context.Context) []*Room {

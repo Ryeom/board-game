@@ -38,7 +38,12 @@ func NewRedisBroadcaster(ctx context.Context) *RedisBroadcaster {
 	go rb.listen()
 	return rb
 }
+func BroadcastToRoom() {
 
+}
+func BroadcastToAllUser() {
+
+}
 func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload any) error {
 	msg := map[string]any{
 		"roomId": roomID,

@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"fmt"
 	"github.com/Ryeom/board-game/user"
 )
 
@@ -44,8 +45,8 @@ var roomEvents = map[string]EventHandler{
 	"room.leave":  HandleRoomLeave,  // 방 나가기
 	"room.list":   HandleRoomList,   // 방 목록 조회
 	"room.update": HandleRoomUpdate, // 방 설정 변경
-	"room.delete": HandleRoomDelete, // 방 삭제
 	"room.kick":   HandleRoomKick,   // 강제 퇴장
+	//"room.delete": HandleRoomDelete, // 방 삭제
 }
 
 // 유저 관련 이벤트 핸들러
@@ -79,4 +80,29 @@ var systemEvents = map[string]EventHandler{
 	"system.error":  HandleSystemError,  // 에러 전달
 	"system.notice": HandleSystemNotice, // 시스템 공지
 	"system.sync":   HandleSystemSync,   // 시스템 전체 상태 동기화
+}
+
+func sendResult(u *user.Session, eventType string, data interface{}, message string) {
+	success := true
+	if eventType == "error" {
+		success = false
+	}
+	res := WebSocketResult{
+		Type:    eventType,
+		Data:    data,
+		Message: message,
+		Success: success,
+	}
+	_ = u.Conn.WriteJSON(res)
+}
+
+func sendError(u *user.Session, eventType string, message string) {
+	sendResult(u, "error", nil, fmt.Sprintf("[%s] %s", eventType, message))
+}
+
+type WebSocketResult struct {
+	Type    string      `json:"type"`    // 메시지 타입 (예: "room_created", "error")
+	Data    interface{} `json:"data"`    // 실제 전송 데이터
+	Message string      `json:"message"` // 선택적인 설명 메시지
+	Success bool        `json:"success"` // 성공여부
 }
