@@ -2,9 +2,10 @@ package ws
 
 import (
 	"context"
+	"github.com/Ryeom/board-game/user"
 )
 
-func dispatchSocketEvent(ctx context.Context, user *UserSession, event SocketEvent) {
+func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEvent) {
 	handler := getHandler(event.Type)
 	handler(ctx, user, event)
 }
@@ -16,7 +17,7 @@ func getHandler(eventType string) EventHandler {
 	return HandleDefault
 }
 
-type EventHandler func(ctx context.Context, user *UserSession, event SocketEvent)
+type EventHandler func(ctx context.Context, user *user.Session, event SocketEvent)
 
 func mergeHandlers(maps ...map[string]EventHandler) map[string]EventHandler {
 	merged := make(map[string]EventHandler)

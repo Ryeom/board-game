@@ -2,7 +2,6 @@ package main
 
 import (
 	l "github.com/Ryeom/board-game/log"
-	"github.com/Ryeom/board-game/room"
 	"github.com/Ryeom/board-game/server"
 	"github.com/labstack/echo/v4"
 )
@@ -26,7 +25,6 @@ func init() {
 }
 
 func main() {
-	room.Initialize()
 	e := echo.New()
 	server.Initialize(e)
 	e.Logger.Fatal(e.Start(":8080"))

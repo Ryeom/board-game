@@ -1,11 +1,11 @@
 package http
 
 import (
+	"github.com/Ryeom/board-game/user"
 	"net/http"
 	"time"
 
 	"github.com/Ryeom/board-game/room"
-	"github.com/Ryeom/board-game/server/ws"
 	"github.com/labstack/echo/v4"
 )
 
@@ -19,7 +19,7 @@ func CreateRoom(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "invalid request"})
 	}
 
-	host := &ws.UserSession{
+	host := &user.Session{
 		ID:     req.HostID,
 		Name:   req.HostName,
 		IsHost: true,
@@ -82,7 +82,7 @@ func UpdateRoom(c echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusNotFound, map[string]any{"status": "fail", "message": "room not found"})
 	}
-
+	r.Save()
 	var req struct {
 		GameMode room.GameMode `json:"gameMode"`
 	}
@@ -92,8 +92,8 @@ func UpdateRoom(c echo.Context) error {
 
 	switch req.GameMode {
 	case room.GameModeHanabi:
-		r.GameMode = req.GameMode
-		_ = room.SaveRoom(c.Request().Context(), r)
+		//r.GameMode = req.GameMode
+		//_ = room.SaveRoom(c.Request().Context(), r)
 		// TODO: r.Engine = hanabi.NewEngine() ... 등 추후 연결
 	default:
 		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "unsupported game mode"})

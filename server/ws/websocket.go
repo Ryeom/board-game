@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Ryeom/board-game/user"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"net"
@@ -31,7 +32,7 @@ func Websocket(c echo.Context) error {
 
 	socketId := generateSocketID(c, conn.RemoteAddr())
 	ctx := context.Background()
-	user := NewUserSession(socketId, "", "", c.RealIP(), c.Request().UserAgent(), false, conn)
+	connectedUser := user.NewUserSession(socketId, "", "", c.RealIP(), c.Request().UserAgent(), false, conn)
 
 	// 최초 identify 메시지 수신
 	var initData websocketInitData
@@ -44,29 +45,29 @@ func Websocket(c echo.Context) error {
 	if initData.Type != "identify" {
 		return echo.NewHTTPError(http.StatusBadRequest, "expected identify event")
 	}
-	user.Name = initData.Name
+	connectedUser.Name = initData.Name
 
 	if cookie, err := c.Cookie("user_name"); err == nil {
-		user.Name = cookie.Value
+		connectedUser.Name = cookie.Value
 	}
 
-	if err := SaveUserSession(ctx, user); err != nil {
+	if err := user.SaveUserSession(ctx, connectedUser); err != nil {
 		return err
 	}
 
 	fmt.Printf(
 		"[Connected] ID: %s | Name: %s | IP: %s | Time: %s\n",
-		user.ID, user.Name, user.IP, user.ConnectedAt.Format(time.RFC3339),
+		connectedUser.ID, connectedUser.Name, connectedUser.IP, connectedUser.ConnectedAt.Format(time.RFC3339),
 	)
 
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println(time.Now(), "❌ Disconnected:", err)
-			_ = DeleteUserSession(ctx, socketId)
+			_ = user.DeleteUserSession(ctx, socketId)
 			fmt.Printf(
 				"[Disconnected] ID: %s | Name: %s | Room: %s | LastPingAt: %s\n",
-				user.ID, user.Name, user.RoomID, user.LastPingAt.Format(time.RFC3339),
+				connectedUser.ID, connectedUser.Name, connectedUser.RoomID, connectedUser.LastPingAt.Format(time.RFC3339),
 			)
 			break
 		}
@@ -77,7 +78,7 @@ func Websocket(c echo.Context) error {
 			continue
 		}
 
-		dispatchSocketEvent(user, event)
+		dispatchSocketEvent(ctx, connectedUser, event)
 	}
 	return nil
 }
@@ -96,7 +97,7 @@ type SocketEvent struct {
 }
 
 type userSessionWrapper struct {
-	*UserSession
+	*user.Session
 }
 
 func (u *userSessionWrapper) GetID() string    { return u.ID }

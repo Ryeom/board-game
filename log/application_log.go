@@ -12,7 +12,7 @@ var ServerLogDesc *os.File
 var AccessLogDesc *os.File
 
 const (
-	ProjectName       = "hanabi_log"
+	ProjectName       = "hanabi"
 	DefaultLogPath    = ""
 	ServerLogFileName = "server.log"
 	AccessLogFileName = "access.log"
@@ -24,8 +24,8 @@ var Logger *logging.Logger
 
 func InitializeApplicationLog() error {
 	var err error
-	logPath := DefaultLogPath + ProjectName + "/"
-	checkDirectoryPath(logPath)
+	logPath := DefaultLogPath //+ ProjectName + "/"
+	//checkDirectoryPath(logPath)
 	serverLogPath := logPath + ServerLogFileName
 	checkFilePath(serverLogPath)
 	accessLogPath := logPath + AccessLogFileName

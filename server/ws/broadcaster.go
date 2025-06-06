@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Ryeom/board-game/user"
 	"log"
 	"time"
 
@@ -24,7 +25,7 @@ type RedisBroadcaster struct {
 
 func NewRedisBroadcaster(ctx context.Context) *RedisBroadcaster {
 	channel := "broadcast:room"
-	pubsub := redisutil.RoomClient.Subscribe(ctx, channel)
+	pubsub := redisutil.Client[redisutil.RedisTargetPubSub].Subscribe(ctx, channel)
 
 	err := pubsub.Ping(ctx)
 	if err != nil {
@@ -48,7 +49,7 @@ func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("브로드캐스트 직렬화 실패: %w", err)
 	}
-	return redisutil.RoomClient.Publish(rb.ctx, "broadcast:room", b).Err()
+	return redisutil.Client[redisutil.RedisTargetPubSub].Publish(rb.ctx, "broadcast:room", b).Err()
 }
 
 func (rb *RedisBroadcaster) listen() {
@@ -62,7 +63,7 @@ func (rb *RedisBroadcaster) listen() {
 			continue
 		}
 
-		sessions, err := GetSessionsByRoom(rb.ctx, parsed.RoomID)
+		sessions, err := user.GetSessionsByRoom(rb.ctx, parsed.RoomID)
 		if err != nil {
 			log.Println("❌ Redis 세션 조회 실패:", err)
 			continue
