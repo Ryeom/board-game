@@ -65,8 +65,8 @@ LLM 기반 가상 플레이어와 함께 즐기는 온라인 보드게임 플랫
 ## 🚀 실행 방법 (로컬 개발 기준)
 
 ```bash
-git clone https://github.com/your-name/hanabi-backend.git
-cd hanabi-backend
+git clone https://github.com/Ryeom/board-game.git
+cd board-game
 go run main.go
 ```
 
