@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Ryeom/board-game/user"
+	"github.com/Ryeom/board-game/internal/user"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"net"

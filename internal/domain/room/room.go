@@ -16,7 +16,7 @@ const (
 type Room struct {
 	ID        string    `json:"id"`
 	RoomName  string    `json:"roomName"`
-	Host      string    `json:"host"`
+	Host      string    `json:"host"` // 방장
 	Players   []string  `json:"players"`
 	GameMode  GameMode  `json:"gameMode"`
 	CreatedAt time.Time `json:"createdAt"`

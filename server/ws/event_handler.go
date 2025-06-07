@@ -3,7 +3,7 @@ package ws
 import (
 	"context"
 	"fmt"
-	"github.com/Ryeom/board-game/user"
+	"github.com/Ryeom/board-game/internal/user"
 )
 
 func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEvent) {

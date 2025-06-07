@@ -1,11 +1,11 @@
 package http
 
 import (
-	"github.com/Ryeom/board-game/user"
+	"github.com/Ryeom/board-game/internal/domain/room"
+	"github.com/Ryeom/board-game/internal/user"
 	"net/http"
 	"time"
 
-	"github.com/Ryeom/board-game/room"
 	"github.com/labstack/echo/v4"
 )
 

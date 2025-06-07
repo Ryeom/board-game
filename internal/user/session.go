@@ -19,6 +19,7 @@ type Session struct {
 	LastPingAt  time.Time       `json:"lastPingAt"`
 	IP          string          `json:"ip"`
 	UserAgent   string          `json:"userAgent"`
+	Status      string          `json:"status"`
 	Conn        *websocket.Conn `json:"-"` // WebSocket 연결은 Redis에 저장하지 않음
 }
 
@@ -61,7 +62,7 @@ func SaveUserSession(ctx context.Context, session *Session) error {
 	return nil
 }
 
-func GetUserSession(ctx context.Context, socketID string) (*Session, error) {
+func GetSession(socketID string) (*Session, error) {
 	return nil, nil
 }
 
