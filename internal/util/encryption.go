@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"strconv"
 )
@@ -99,4 +100,16 @@ func DecryptAES(encryptText string, key []byte) (decryptText string, err error) 
 	stream.XORKeyStream(cipherText, cipherText)
 	decryptText = string(cipherText)
 	return
+}
+
+// HashPassword 비밀번호 bcrypt으로 해싱
+func HashPassword(password string) (string, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hashed), err
+}
+
+// CheckPasswordHash 평문과 해시 비교
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
