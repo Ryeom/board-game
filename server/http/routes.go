@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/Ryeom/board-game/internal/auth"
 	"github.com/Ryeom/board-game/server/ws"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -12,10 +13,25 @@ func InitializeRouter(e *echo.Echo) {
 		bg.GET("/healthCheck", healthCheck)
 		bg.GET("/ws", ws.Websocket)
 
-		bg.GET("/api/rooms", GetRoomList)
-		bg.POST("/api/rooms", CreateRoom)
-		bg.PATCH("/api/rooms/:roomId", UpdateRoom)
-		bg.DELETE("/api/rooms/:roomId", DeleteRoom)
+		authGroup := bg.Group("/auth")
+		{
+			authGroup.POST("/signup", SignUp)
+			authGroup.POST("/login", Login)
+		}
+
+		apiGroup := bg.Group("/api")
+		apiGroup.Use(auth.JWTMiddleware)
+		{
+			apiGroup.GET("/rooms", GetRoomList)
+			apiGroup.POST("/rooms", CreateRoom)
+			apiGroup.PATCH("/rooms/:roomId", UpdateRoom)
+			apiGroup.DELETE("/rooms/:roomId", DeleteRoom)
+
+			apiGroup.GET("/user/profile", GetUserProfile)
+			apiGroup.PATCH("/user/profile", UpdateUserProfile)
+			apiGroup.POST("/user/change-password", ChangePassword)
+
+		}
 	}
 
 }
@@ -52,10 +68,4 @@ func healthCheck(c echo.Context) error {
 	result.Data = o
 
 	return c.JSON(http.StatusOK, result)
-}
-
-type HttpResult struct {
-	Code interface{} `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data,omitempty"`
 }
