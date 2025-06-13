@@ -28,6 +28,7 @@ func HandleDefault(ctx context.Context, u *user.Session, event SocketEvent) {
 
 // HandleRoomCreate 방 생성하기
 func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
+	// 기존 로직 유지. 방 생성 시에는 아직 Set에 추가할 필요 없음 (입장 시 추가)
 	rid := "room:" + u.ID + ":" + fmt.Sprint(time.Now().UnixNano())
 	r := &room.Room{
 		ID:        rid,
@@ -36,7 +37,15 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 		GameMode:  room.GameModeHanabi,
 		CreatedAt: time.Now(),
 	}
-	r.Save()
+	r.Save() // 방 정보 저장
+
+	// 방 생성 시 방장은 자동으로 방에 참여하므로, Set에 추가
+	if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
+		log.Logger.Errorf("HandleRoomCreate - Failed to add host to room sessions set: %v", err)
+		sendError(u, event.Type, "방 생성 중 오류가 발생했습니다.")
+		return
+	}
+
 	rooms := room.ListRooms(ctx)
 	sendResult(u, event.Type, map[string]interface{}{
 		"room_id":   r.ID,
@@ -51,8 +60,35 @@ func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, event.Type, "room not found")
 		return
 	}
+
+	// 사용자의 RoomID 업데이트
+	oldRoomID := u.RoomID // 기존 방 ID 저장
 	u.RoomID = r.ID
-	_, _ = r.Join(ctx, u.ID)
+	// 변경된 세션 정보를 Redis에 저장 (RoomID가 업데이트됨)
+	_ = user.SaveUserSession(u)
+
+	joined, err := r.Join(ctx, u.ID)
+	if err != nil {
+		log.Logger.Errorf("HandleRoomJoin - Room join error: %v", err)
+		sendError(u, event.Type, "방 참여 실패")
+		return
+	}
+	if !joined { // 이미 참여한 경우
+		sendError(u, event.Type, "이미 방에 참여 중입니다.")
+		return
+	}
+
+	// 이전 방이 있었다면 해당 방의 Set에서 제거
+	if oldRoomID != "" && oldRoomID != r.ID {
+		_ = redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(oldRoomID), u.ID)
+	}
+
+	// 새 방의 세션 Set에 사용자 ID 추가
+	if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
+		log.Logger.Errorf("HandleRoomJoin - Failed to add user %s to room %s sessions set: %v", u.ID, r.ID, err)
+		// 에러 처리 또는 알림
+	}
+
 	u.Conn.WriteJSON(map[string]any{
 		"type": "room.join",
 		"data": r,
@@ -83,7 +119,13 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	// 플레이어 제거
+	// Redis Set에서 플레이어 제거
+	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
+		log.Logger.Errorf("HandleRoomLeave - Failed to remove user %s from room %s sessions set: %v", u.ID, r.ID, err)
+		// 에러 처리
+	}
+
+	// 플레이어 제거 (기존 Room 로직)
 	newPlayers := make([]string, 0, len(r.Players))
 	for _, pid := range r.Players {
 		if pid != u.ID {
@@ -95,14 +137,17 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 	// 방에 아무도 없으면 삭제
 	if len(r.Players) == 0 {
 		_ = room.DeleteRoom(ctx, r.ID)
+		// 방 삭제 시 해당 방의 세션 Set도 삭제 (선택 사항, 필요시 구현)
+		_ = redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID))
 	} else {
 		_ = r.Save()
 	}
 
-	// 유저의 RoomID 초기화
+	// 유저의 RoomID 초기화 및 세션 정보 업데이트
 	u.RoomID = ""
+	_ = user.SaveUserSession(u)
 
-	// 본인에게 알림)
+	// 본인에게 알림
 	sendResult(u, event.Type, map[string]any{
 		"type": "room_left",
 		"data": map[string]string{
@@ -272,25 +317,34 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEvent) {
 	roomID := u.RoomID
 	if roomID == "" {
-		return // 방에 속해있지 않으면 아무것도 안 함
+		// 방에 속해있지 않으면 Redis Set에서 제거할 필요 없음
+		return
+	}
+
+	// 방에 속해 있었다면 해당 방의 Set에서 제거
+	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(roomID), u.ID); err != nil {
+		log.Logger.Errorf("HandleUserDisconnect - Failed to remove user %s from room %s sessions set: %v", u.ID, roomID, err)
+		// 에러 처리
 	}
 
 	r, ok := room.GetRoom(ctx, roomID)
 	if !ok {
-		return
+		return // 방이 이미 사라졌을 수 있음
 	}
 
-	// 해당 유저 제거
-	updated := []string{}
+	// 해당 유저 제거 (기존 Room 로직)
+	updatedPlayers := make([]string, 0, len(r.Players))
 	for _, pid := range r.Players {
 		if pid != u.ID {
-			updated = append(updated, pid)
+			updatedPlayers = append(updatedPlayers, pid)
 		}
 	}
-	r.Players = updated
+	r.Players = updatedPlayers
 
 	if len(r.Players) == 0 {
 		_ = room.DeleteRoom(ctx, r.ID)
+		// 방 삭제 시 해당 방의 세션 Set도 삭제 (선택 사항, 필요시 구현)
+		_ = redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID))
 	} else {
 		_ = r.Save()
 		// 나머지 유저에게 알림
@@ -303,9 +357,11 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		})
 	}
 
-	// 로그 또는 상태 초기화
+	// 유저의 RoomID 초기화 및 상태 업데이트
 	u.RoomID = ""
 	u.Status = "disconnected"
+	// Redis에서 세션 정보를 완전히 삭제
+	_ = user.DeleteUserSession(u.ID)
 }
 
 // HandleUserStatus 유저 상태 조회

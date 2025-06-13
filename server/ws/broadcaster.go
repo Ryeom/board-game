@@ -68,7 +68,7 @@ func (rb *RedisBroadcaster) listen() {
 			continue
 		}
 
-		sessions, err := user.GetSessionsByRoom(rb.ctx, parsed.RoomID)
+		sessions, err := user.GetSessionsByRoom(parsed.RoomID)
 		if err != nil {
 			log.Println("❌ Redis 세션 조회 실패:", err)
 			continue

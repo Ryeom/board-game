@@ -3,7 +3,10 @@ package redisutil
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/Ryeom/board-game/log"
+	"github.com/redis/go-redis/v9"
 	"time"
 )
 
@@ -220,43 +223,6 @@ func GetSet(target string, key string) []string {
 	return obj
 }
 
-// SaveJSON sets a key with a JSON-encoded value.
-func SaveJSON(target string, key string, value interface{}, ttl time.Duration) {
-	rdb := Client[target]
-	if rdb == nil {
-		return
-	}
-	ctx := context.Background()
-	data, err := json.Marshal(value)
-	if err != nil {
-		log.Logger.Errorf("JSON Marshal ERROR: %v", err)
-		return
-	}
-	err = rdb.Set(ctx, key, data, ttl).Err()
-	if err != nil {
-		log.Logger.Errorf("Redis Set ERROR: %v", err)
-	}
-}
-
-// GetJSON gets a key and unmarshals it into the given destination.
-func GetJSON(target string, key string, dest interface{}) bool {
-	rdb := Client[target]
-	if rdb == nil {
-		return false
-	}
-	ctx := context.Background()
-	val, err := rdb.Get(ctx, key).Result()
-	if err != nil {
-		log.Logger.Errorf("Redis Get ERROR: %v", err)
-		return false
-	}
-	if err := json.Unmarshal([]byte(val), dest); err != nil {
-		log.Logger.Errorf("JSON Unmarshal ERROR: %v", err)
-		return false
-	}
-	return true
-}
-
 // UpdateHashField updates a single field of a Redis hash.
 func UpdateHashField(target string, key string, field string, value interface{}) {
 	rdb := Client[target]
@@ -283,4 +249,100 @@ func GetHashField(target string, key string, field string) string {
 		return ""
 	}
 	return val
+}
+
+func Delete(target string, key string) error {
+	rdb := Client[target] //
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target)) // errors 임포트 추가
+	}
+	ctx := context.Background()
+	err := rdb.Del(ctx, key).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis Delete ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
+}
+
+func SaveJSON(target string, key string, value interface{}, ttl time.Duration) {
+	rdb := Client[target] //
+	if rdb == nil {
+		log.Logger.Errorf("SaveJSON - Redis client not found for target: %s", target) // 에러 로깅 추가
+		return
+	}
+	ctx := context.Background()
+	data, err := json.Marshal(value)
+	if err != nil {
+		log.Logger.Errorf("JSON Marshal ERROR: %v", err)
+		return
+	}
+	err = rdb.Set(ctx, key, data, ttl).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis Set ERROR: %v", err)
+	}
+}
+
+func GetJSON(target string, key string, dest interface{}) bool {
+	rdb := Client[target] //
+	if rdb == nil {
+		log.Logger.Errorf("GetJSON - Redis client not found for target: %s", target) // 에러 로깅 추가
+		return false
+	}
+	ctx := context.Background()
+	val, err := rdb.Get(ctx, key).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) { // 키가 존재하지 않는 경우
+			return false
+		}
+		log.Logger.Errorf("Redis Get ERROR for key %s: %v", key, err)
+		return false
+	}
+	if err := json.Unmarshal([]byte(val), dest); err != nil {
+		log.Logger.Errorf("JSON Unmarshal ERROR for key %s: %v", key, err)
+		return false
+	}
+	return true
+}
+
+func AddSet(target string, key string, members ...interface{}) error {
+	rdb := Client[target]
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	err := rdb.SAdd(ctx, key, members...).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis SAdd ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
+}
+
+func GetSetMembers(target string, key string) ([]string, error) {
+	rdb := Client[target]
+	if rdb == nil {
+		return nil, errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	members, err := rdb.SMembers(ctx, key).Result()
+	if err != nil {
+		log.Logger.Errorf("Redis SMembers ERROR for key %s in target %s: %v", key, target, err)
+		return nil, err
+	}
+	return members, nil
+}
+
+func RemoveSetMembers(target string, key string, members ...interface{}) error {
+	rdb := Client[target]
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	err := rdb.SRem(ctx, key, members...).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis SRem ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
 }

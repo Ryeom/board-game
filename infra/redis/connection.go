@@ -18,19 +18,19 @@ var Client map[string]*redis.Client
 
 func Initialize() {
 	Client = map[string]*redis.Client{}
-	userClient, err := CreateClient(0)
+	userClient, err := CreateClient(viper.GetInt("redis.user-index"))
 	if err != nil {
 		log.Logger.Fatal(err)
 		panic(err)
 	}
 	Client[RedisTargetUser] = userClient
-	roomClient, err := CreateClient(1)
+	roomClient, err := CreateClient(viper.GetInt("redis.room-index"))
 	if err != nil {
 		log.Logger.Fatal(err)
 		panic(err)
 	}
 	Client[RedisTargetRoom] = roomClient
-	pubSubClient, err := CreateClient(3)
+	pubSubClient, err := CreateClient(viper.GetInt("redis.queue-index"))
 	if err != nil {
 		log.Logger.Fatal(err)
 		panic(err)

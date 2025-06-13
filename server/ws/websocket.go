@@ -51,7 +51,7 @@ func Websocket(c echo.Context) error {
 		connectedUser.Name = cookie.Value
 	}
 
-	if err := user.SaveUserSession(ctx, connectedUser); err != nil {
+	if err := user.SaveUserSession(connectedUser); err != nil {
 		return err
 	}
 
@@ -64,7 +64,7 @@ func Websocket(c echo.Context) error {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println(time.Now(), "❌ Disconnected:", err)
-			_ = user.DeleteUserSession(ctx, socketId)
+			_ = user.DeleteUserSession(socketId)
 			fmt.Printf(
 				"[Disconnected] ID: %s | Name: %s | Room: %s | LastPingAt: %s\n",
 				connectedUser.ID, connectedUser.Name, connectedUser.RoomID, connectedUser.LastPingAt.Format(time.RFC3339),

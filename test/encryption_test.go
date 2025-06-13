@@ -1,26 +1,20 @@
-package util
+package test
 
 import (
 	"fmt"
+	"github.com/Ryeom/board-game/internal/util"
 	"github.com/spf13/viper"
 	"strings"
 	"testing"
 )
 
-var filePath = ""
-var keyName = "bg.key"
+var key = "HelloooBoardGame"
 
 func TestEncryption(t *testing.T) {
 
-	list := map[string]string{
-		"": "",
-	}
-	err := loadConfigFile(filePath)
-	if err != nil {
-		t.Errorf("Error loading config file: %v", err)
-	}
+	list := map[string]string{}
 	for k, v := range list {
-		encValue, _ := EncryptAES(v, []byte(viper.GetString(keyName)))
+		encValue, _ := util.EncryptAES(v, []byte(key))
 		//_, _ := EncryptAES(k, []byte(Key))
 		fmt.Println(k, " = ", encValue)
 		//fmt.Println(k, " = ", `"`+encValue+`"`)
@@ -28,14 +22,7 @@ func TestEncryption(t *testing.T) {
 
 }
 func TestDecryption(t *testing.T) {
-	list := map[string]string{
-		"": "",
-	}
-	err := loadConfigFile(filePath)
-	if err != nil {
-		t.Errorf("Error loading config file: %v", err)
-	}
-
+	list := map[string]string{}
 	for _, key := range viper.AllKeys() {
 		val := viper.GetString(key)
 		if val == "" {
@@ -49,7 +36,7 @@ func TestDecryption(t *testing.T) {
 		if v == "" || strings.HasPrefix(k, "bg.") {
 			continue
 		}
-		decValue, err := DecryptAES(v, []byte(viper.GetString(keyName)))
+		decValue, err := util.DecryptAES(v, []byte(key))
 		if err != nil {
 			t.Errorf(v, err.Error())
 		}

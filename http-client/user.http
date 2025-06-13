@@ -1,0 +1,26 @@
+### Get User Profile (사용자 프로필 조회) - Requires Authorization Token
+# 먼저 위의 로그인 요청을 실행하여 토큰 얻은 뒤 실행
+GET http://localhost:8080/board-game/api/user/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDk5MTMxMDEsInVzZXJfaWQiOiI5YTJjNjI4My01ZTdlLTRmYTYtYTVkZi04MzAzN2Q0Y2FjM2UifQ.ZatiGTM3N5ll8VyhdNqz8ASX0yBpJB8vvQkb1xWsdoE
+
+
+### Update User Profile (사용자 프로필 업데이트) - Requires Authorization Token
+# 닉네임 또는 프로필 이미지 URL을 변경합니다. (둘 다 선택적)
+PATCH http://localhost:8080/board-game/api/user/profile
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDk5MTMxMDEsInVzZXJfaWQiOiI5YTJjNjI4My01ZTdlLTRmYTYtYTVkZi04MzAzN2Q0Y2FjM2UifQ.ZatiGTM3N5ll8VyhdNqz8ASX0yBpJB8vvQkb1xWsdoE
+
+{
+  "nickname": "UpdatedNickname",
+  "profileImage": "http://example.com/new_profile.jpg"
+}
+
+### Change Password (비밀번호 변경) - Requires Authorization Token
+POST http://localhost:8080/board-game/api/user/change-password
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NDk5MTMxMDEsInVzZXJfaWQiOiI5YTJjNjI4My01ZTdlLTRmYTYtYTVkZi04MzAzN2Q0Y2FjM2UifQ.ZatiGTM3N5ll8VyhdNqz8ASX0yBpJB8vvQkb1xWsdoE
+
+{
+  "currentPassword": "testpassword123",
+  "newPassword": "new_strong_password456"
+}

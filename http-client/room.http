@@ -1,0 +1,32 @@
+### Create Room (방 생성) - Requires Authorization Token
+# roomId는 고유해야 합니다.
+POST http://localhost:8080/board-game/api/rooms
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "roomId": "my-hanabi-room-123",
+  "hostId": "some_user_id_from_login_response",
+  "hostName": "TesterName"
+}
+
+### Get Room List (방 목록 조회) - Requires Authorization Token
+GET http://localhost:8080/board-game/api/rooms
+Authorization: Bearer your_jwt_token_here
+
+
+### Update Room (방 설정 변경) - Requires Authorization Token
+# {roomId} 부분은 실제 방 ID로 변경해야 합니다.
+# 현재 GameMode Hanabi만 지원 (internal/domain/room/room.go)
+PATCH http://localhost:8080/board-game/api/rooms/my-hanabi-room-123
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "gameMode": "hanabi"
+}
+
+### Delete Room (방 삭제) - Requires Authorization Token
+# {roomId} 부분은 실제 방 ID로 변경해야 합니다.
+DELETE http://localhost:8080/board-game/api/rooms/my-hanabi-room-123
+Authorization: Bearer your_jwt_token_here

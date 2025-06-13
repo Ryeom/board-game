@@ -1,7 +1,12 @@
 [bg]
-key=""
+key="HelloooBoardGame"
+
 
 [redis]
 addr = "H8wnDYWK8cYyO8LBv21e9AnK9RjHazELfOnWdAKK"
-room-index = "H3vjzsfzXHtARHfBhR-lVMc="
-user-index = "tATZ-gGcY1e0zzX9WV7n3Wo="
+room-index = "eIFnvsl4Ibi-kTUyV6ohp-Q="
+user-index = "6DfAh7_bndUQi8TQgC6Ei9Y="
+queue-index = "lgMAsXJmOdNPFAzf68zSKaM="
+
+[db]
+dsn = "XSgJBR8yf5Pa-TdAO7tEOcZCCgY9iAuXzDGbTsjFDfuHJedX7eiwt_bLL0uv-OcYQUxaJY2RIjMRwquuISjZwmuuPA9GdEB8i3zOxvg5fb50ZMtFGL5KfpXzyLpwhsa2lXszaGvUVjMbV64HB0OhZXLrKQUwaTNgx5NwW0M1jxXiqc8="
