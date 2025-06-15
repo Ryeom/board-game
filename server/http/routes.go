@@ -45,8 +45,8 @@ func InitializeRouter(e *echo.Echo) {
 // @Router /board-game/healthCheck [get]
 func healthCheck(c echo.Context) error {
 	result := HttpResult{
-		Code: 200,
-		Msg:  "OK",
+		Code:    200,
+		Message: "OK",
 	}
 	var param struct {
 		Data interface{} `json:"data"`
