@@ -7,7 +7,7 @@ import (
 	_ "github.com/Ryeom/board-game/docs" // swagger docs import
 	"github.com/Ryeom/board-game/infra/db"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
-	appErrors "github.com/Ryeom/board-game/internal/errors"
+	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/util"
 	l "github.com/Ryeom/board-game/log"
 	appHttp "github.com/Ryeom/board-game/server/http"
@@ -39,7 +39,7 @@ func Initialize(e *echo.Echo) {
 
 func httpErrorHandler(e *echo.Echo) func(err error, c echo.Context) {
 	return func(err error, c echo.Context) {
-		var appErr *appErrors.AppError
+		var appErr *ae.AppError
 		if errors.As(err, &appErr) {
 			response := appHttp.NewErrorResponse(appErr)
 			if !c.Response().Committed {
@@ -69,7 +69,7 @@ func httpErrorHandler(e *echo.Echo) func(err error, c echo.Context) {
 			e.Logger.Errorf("HTTP Error (Generic): %v, Path=%s", err, c.Path())
 		}
 
-		response := appHttp.NewErrorResponse(appErrors.InternalServerError(message, err))
+		response := appHttp.NewErrorResponse(ae.InternalServerError(message, err))
 		response.Code = code
 		response.Message = message
 
