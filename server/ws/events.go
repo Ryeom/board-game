@@ -6,13 +6,14 @@ import (
 	"fmt"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/domain/room"
+	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
 	"time"
 )
 
 func HandleDefault(ctx context.Context, u *user.Session, event SocketEvent) {
-	sendError(u, event.Type, fmt.Sprintf("unknown event type: %s", event.Type))
+	sendError(u, ae.BadRequest(fmt.Sprintf("알 수 없는 이벤트 타입: %s", event.Type), nil))
 	eventJSON, _ := json.Marshal(event)
 	log.Logger.Warningf(
 		"[UNKNOWN_EVENT] type=%s userID=%s userName=%s roomID=%s ip=%s ua=%s event=%s",
@@ -42,7 +43,7 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 	// 방 생성 시 방장은 자동으로 방에 참여하므로, Set에 추가
 	if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
 		log.Logger.Errorf("HandleRoomCreate - Failed to add host to room sessions set: %v", err)
-		sendError(u, event.Type, "방 생성 중 오류가 발생했습니다.")
+		sendError(u, ae.InternalServerError("방 생성 중 오류가 발생했습니다.", err))
 		return
 	}
 
@@ -57,7 +58,7 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 	r, ok := room.GetRoom(ctx, event.RoomID)
 	if !ok {
-		sendError(u, event.Type, "room not found")
+		sendError(u, ae.NotFound("방을 찾을 수 없습니다.", nil))
 		return
 	}
 
@@ -70,11 +71,11 @@ func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 	joined, err := r.Join(ctx, u.ID)
 	if err != nil {
 		log.Logger.Errorf("HandleRoomJoin - Room join error: %v", err)
-		sendError(u, event.Type, "방 참여 실패")
+		sendError(u, ae.InternalServerError("방 참여 실패", err))
 		return
 	}
 	if !joined { // 이미 참여한 경우
-		sendError(u, event.Type, "이미 방에 참여 중입니다.")
+		sendError(u, ae.Conflict("이미 방에 참여 중입니다.", nil))
 		return
 	}
 
@@ -109,13 +110,13 @@ func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 // HandleRoomLeave 방 나가기
 func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
-		sendError(u, event.Type, "no room to leave")
+		sendError(u, ae.BadRequest("방에 참여한 상태가 아닙니다.", nil))
 		return
 	}
 
 	r, ok := room.GetRoom(ctx, u.RoomID)
 	if !ok {
-		sendError(u, event.Type, "room not found")
+		sendError(u, ae.NotFound("방을 찾을 수 없습니다.", nil))
 		return
 	}
 
@@ -138,7 +139,10 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 	if len(r.Players) == 0 {
 		_ = room.DeleteRoom(ctx, r.ID)
 		// 방 삭제 시 해당 방의 세션 Set도 삭제 (선택 사항, 필요시 구현)
-		_ = redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID))
+		err := redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID))
+		if err != nil {
+			log.Logger.Errorf("HandleRoomLeave - Failed to delete room %s sessions set: %v", r.ID, err)
+		}
 	} else {
 		_ = r.Save()
 	}
@@ -178,18 +182,18 @@ func HandleRoomList(ctx context.Context, u *user.Session, event SocketEvent) {
 // HandleRoomUpdate 방 설정 변경
 func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
-		sendError(u, event.Type, "no room to update")
+		sendError(u, ae.NotFound("방에 참여한 상태가 아닙니다.", nil))
 		return
 	}
 
 	r, ok := room.GetRoom(ctx, u.RoomID)
 	if !ok {
-		sendError(u, event.Type, "room not found")
+		sendError(u, ae.NotFound("방을 찾을 수 없습니다.", nil))
 		return
 	}
 
 	if r.Host != u.ID {
-		sendError(u, event.Type, "only host can update room settings")
+		sendError(u, ae.Unauthorized("방장에게만 권한이 있습니다.", nil))
 		return
 	}
 
@@ -202,7 +206,7 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	// 변경 저장
 	if err := r.Save(); err != nil {
-		sendError(u, event.Type, "failed to update room")
+		sendError(u, ae.InternalServerError("변경 저장 시 오류가 발생했습니다.", nil))
 		return
 	}
 
@@ -226,18 +230,18 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 	targetID, ok := event.Data["userId"].(string)
 	if !ok || targetID == "" {
-		sendError(u, "room.kick", "userId가 필요합니다.")
+		sendError(u, ae.NotFound("지정된 사용자가 없습니다.", nil))
 		return
 	}
 
 	r, ok := room.GetRoom(ctx, u.RoomID)
 	if !ok {
-		sendError(u, "room.kick", "방 정보를 찾을 수 없습니다.")
+		sendError(u, ae.NotFound("방 정보를 찾을 수 없습니다.", nil))
 		return
 	}
 
 	if r.Host != u.ID {
-		sendError(u, "room.kick", "방장만 강퇴할 수 있습니다.")
+		sendError(u, ae.Unauthorized("강제 퇴장 권한이 없습니다.", nil))
 		return
 	}
 
@@ -251,13 +255,13 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 		newPlayers = append(newPlayers, pid)
 	}
 	if !kicked {
-		sendError(u, "room.kick", "해당 유저는 방에 없습니다.")
+		sendError(u, ae.NotFound("당 유저는 방에 없습니다.", nil))
 		return
 	}
 
 	r.Players = newPlayers
 	if err := r.Save(); err != nil {
-		sendError(u, "room.kick", "방 정보를 저장하는 데 실패했습니다.")
+		sendError(u, ae.InternalServerError("방 정보를 저장하는 데 실패했습니다.", nil))
 		return
 	}
 
@@ -275,7 +279,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 	userName, ok2 := data["userName"].(string)
 
 	if !ok1 || !ok2 || userID == "" || userName == "" {
-		sendError(u, "user.identify", "userId와 userName이 필요합니다.")
+		sendError(u, ae.InternalServerError("필수값이 없습니다.", nil))
 		return
 	}
 
@@ -306,7 +310,7 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 	}
 
 	if len(updated) == 0 {
-		sendError(u, "user.update", "변경할 항목이 없습니다.")
+		sendError(u, ae.NotFound("변경할 항목이 없습니다.", nil))
 		return
 	}
 
@@ -368,7 +372,7 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 func HandleUserStatus(ctx context.Context, u *user.Session, event SocketEvent) {
 	targetID, ok := event.Data["userId"].(string)
 	if !ok || targetID == "" {
-		sendError(u, event.Type, "조회할 userId가 없습니다.")
+		sendError(u, ae.NotFound("필수값이 부족합니다.", nil))
 		return
 	}
 

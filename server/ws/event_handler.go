@@ -2,8 +2,9 @@ package ws
 
 import (
 	"context"
-	"fmt"
+	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
+	"github.com/Ryeom/board-game/log"
 )
 
 func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEvent) {
@@ -83,26 +84,51 @@ var systemEvents = map[string]EventHandler{
 }
 
 func sendResult(u *user.Session, eventType string, data interface{}, message string) {
-	success := true
-	if eventType == "error" {
-		success = false
+	// Conn이 nil인 경우 (예: Redis에서 로드된 세션) 메시지를 보낼 수 없음
+	if u.Conn == nil {
+		log.Logger.Errorf("Cannot send result to user %s: WebSocket connection is nil.", u.ID)
+		return
 	}
 	res := WebSocketResult{
 		Type:    eventType,
 		Data:    data,
 		Message: message,
-		Success: success,
+		Success: true, // 성공 응답
 	}
 	_ = u.Conn.WriteJSON(res)
 }
 
-func sendError(u *user.Session, eventType string, message string) {
-	sendResult(u, "error", nil, fmt.Sprintf("[%s] %s", eventType, message))
+func sendError(u *user.Session, appErr *ae.AppError) {
+	// Conn이 nil인 경우 메시지를 보낼 수 없음
+	if u.Conn == nil {
+		log.Logger.Errorf("Cannot send error to user %s: WebSocket connection is nil. Error: %v", u.ID, appErr)
+		return
+	}
+	res := WebSocketResult{
+		Type:      "error",
+		Data:      nil,
+		Message:   appErr.Message,
+		Success:   false,
+		Code:      appErr.Status,
+		ErrorCode: appErr.Code,
+	}
+	_ = u.Conn.WriteJSON(res)
+
+	// 서버 로그에는 원본 에러와 함께 상세 정보를 남깁니다.
+	if appErr.Err != nil {
+		log.Logger.Errorf("[WS Error] UserID: %s, EventType: %s, Status: %d, Code: %s, Message: %s, OriginalError: %v",
+			u.ID, res.Type, appErr.Status, appErr.Code, appErr.Message, appErr.Err)
+	} else {
+		log.Logger.Debugf("[WS Error] UserID: %s, EventType: %s, Status: %d, Code: %s, Message: %s",
+			u.ID, res.Type, appErr.Status, appErr.Code, appErr.Message)
+	}
 }
 
 type WebSocketResult struct {
-	Type    string      `json:"type"`    // 메시지 타입 (예: "room_created", "error")
-	Data    interface{} `json:"data"`    // 실제 전송 데이터
-	Message string      `json:"message"` // 선택적인 설명 메시지
-	Success bool        `json:"success"` // 성공여부
+	Type      string      `json:"type"`                // 메시지 타입 (예: "room_created", "error")
+	Data      interface{} `json:"data"`                // 실제 전송 데이터
+	Message   string      `json:"message"`             // 선택적인 설명 메시지
+	Success   bool        `json:"success"`             // 성공여부
+	Code      int         `json:"code,omitempty"`      // HTTP Status Code와 유사 (에러 시)
+	ErrorCode string      `json:"errorCode,omitempty"` // 내부 에러 코드 (에러 시)
 }

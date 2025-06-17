@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/Ryeom/board-game/infra/db"
+	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
 	"github.com/Ryeom/board-game/log"
@@ -27,16 +28,16 @@ func GetUserProfile(c echo.Context) error {
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("GetUserProfile - UserID not found in context")
-		return c.JSON(http.StatusUnauthorized, Failure("인증되지 않은 사용자입니다.", http.StatusUnauthorized))
+		return ae.Unauthorized("사용자 정보를 가져오는데 실패했습니다.", nil)
 	}
 
-	u, err := user.FindUserByID(userID) //
+	u, err := user.FindUserByID(userID)
 	if err != nil {
 		log.Logger.Errorf("GetUserProfile - FindUserByID Error for ID %s: %v", userID, err)
-		return c.JSON(http.StatusInternalServerError, Failure("사용자 정보를 가져오는 데 실패했습니다.", http.StatusInternalServerError))
+		return ae.InternalServerError("사용자 정보를 가져오는데 실패했습니다.", err)
 	}
-	if u == nil { //
-		return c.JSON(http.StatusNotFound, Failure("사용자를 찾을 수 없습니다.", http.StatusNotFound))
+	if u == nil {
+		return ae.InternalServerError("사용자를 찾을 수 없습니다.", err)
 	}
 
 	// 비밀번호와 같은 민감 정보는 제외하고 반환
@@ -79,26 +80,26 @@ func UpdateUserProfile(c echo.Context) error {
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("UpdateUserProfile - UserID not found in context")
-		return c.JSON(http.StatusUnauthorized, Failure("인증되지 않은 사용자입니다.", http.StatusUnauthorized))
+		return ae.Unauthorized("인증되지 않은 사용자입니다.", nil)
 	}
 
 	var req UpdateProfileRequest
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("UpdateUserProfile - Bind Error: %v", err)
-		return c.JSON(http.StatusBadRequest, Failure("잘못된 요청 형식입니다", http.StatusBadRequest))
+		return ae.BadRequest("잘못된 요청 형식입니다.", err)
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("UpdateUserProfile - Validation Error: %v", err)
-		return c.JSON(http.StatusBadRequest, Failure(err.Error(), http.StatusBadRequest))
+		return ae.BadRequest("잘못된 요청 형식입니다.", nil)
 	}
 
 	u, err := user.FindUserByID(userID) //
 	if err != nil {
 		log.Logger.Errorf("UpdateUserProfile - FindUserByID Error for ID %s: %v", userID, err)
-		return c.JSON(http.StatusInternalServerError, Failure("사용자 정보를 가져오는 데 실패했습니다.", http.StatusInternalServerError))
+		return ae.InternalServerError("사용자 정보를 가져오는 데 실패했습니다.", nil)
 	}
 	if u == nil {
-		return c.JSON(http.StatusNotFound, Failure("사용자를 찾을 수 없습니다.", http.StatusNotFound))
+		return ae.NotFound("사용자 찾을 수 없습니다.", nil)
 	}
 
 	// 닉네임 업데이트
@@ -117,7 +118,7 @@ func UpdateUserProfile(c echo.Context) error {
 	// 변경 사항 저장
 	if err := db.DB.Save(u).Error; err != nil { //
 		log.Logger.Errorf("UpdateUserProfile - DB Save Error for ID %s: %v", userID, err)
-		return c.JSON(http.StatusInternalServerError, Failure("프로필 업데이트에 실패했습니다.", http.StatusInternalServerError))
+		return ae.InternalServerError("프로필 업데이트에 실패했습니다.", err)
 	}
 
 	return c.JSON(http.StatusOK, Success(nil, "프로필이 성공적으로 업데이트되었습니다."))
@@ -147,45 +148,45 @@ func ChangePassword(c echo.Context) error {
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("ChangePassword - UserID not found in context")
-		return c.JSON(http.StatusUnauthorized, Failure("인증되지 않은 사용자입니다.", http.StatusUnauthorized))
+		return ae.Unauthorized("인증되지 않은 사용자입니다.", nil)
 	}
 
 	var req ChangePasswordRequest
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("ChangePassword - Bind Error: %v", err)
-		return c.JSON(http.StatusBadRequest, Failure("잘못된 요청 형식입니다", http.StatusBadRequest))
+		return ae.BadRequest("잘못된 요청 형식입니다..", err)
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("ChangePassword - Validation Error: %v", err)
-		return c.JSON(http.StatusBadRequest, Failure(err.Error(), http.StatusBadRequest))
+		return ae.BadRequest("잘못된 요청 형식입니다..", err)
 	}
 
 	u, err := user.FindUserByID(userID) //
 	if err != nil {
 		log.Logger.Errorf("ChangePassword - FindUserByID Error for ID %s: %v", userID, err)
-		return c.JSON(http.StatusInternalServerError, Failure("사용자 정보를 가져오는 데 실패했습니다.", http.StatusInternalServerError))
+		return ae.InternalServerError("사용자 정보를 가져오는 데 실패했습니다.", err)
 	}
 	if u == nil {
-		return c.JSON(http.StatusNotFound, Failure("사용자를 찾을 수 없습니다.", http.StatusNotFound))
+		return ae.NotFound("사용자를 찾을 수 없습니다.", err)
 	}
 
 	// 현재 비밀번호 검증
 	if !util.CheckPasswordHash(req.CurrentPassword, u.Password) { //
-		return c.JSON(http.StatusUnauthorized, Failure("현재 비밀번호가 올바르지 않습니다.", http.StatusUnauthorized))
+		return ae.Unauthorized("사용자를 찾을 수 없습니다.", nil)
 	}
 
 	// 새 비밀번호 해싱
 	hashedNewPassword, err := util.HashPassword(req.NewPassword) //
 	if err != nil {
 		log.Logger.Errorf("ChangePassword - Password Hashing Error: %v", err)
-		return c.JSON(http.StatusInternalServerError, Failure("비밀번호 처리 중 오류가 발생했습니다.", http.StatusInternalServerError))
+		return ae.Unauthorized("비밀번호 처리 중 오류가 발생했습니다.", err)
 	}
 
 	// DB에 새 비밀번호 저장
 	u.Password = hashedNewPassword
 	if err := db.DB.Save(u).Error; err != nil { //
 		log.Logger.Errorf("ChangePassword - DB Save Error for ID %s: %v", userID, err)
-		return c.JSON(http.StatusInternalServerError, Failure("비밀번호 변경에 실패했습니다.", http.StatusInternalServerError))
+		return ae.Unauthorized("비밀번호 변경에 실패했습니다.", err)
 	}
 
 	return c.JSON(http.StatusOK, Success(nil, "비밀번호가 성공적으로 변경되었습니다."))

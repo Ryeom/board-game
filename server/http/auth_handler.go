@@ -3,7 +3,7 @@ package http
 import (
 	"github.com/Ryeom/board-game/infra/db"
 	"github.com/Ryeom/board-game/internal/auth"
-	appErrors "github.com/Ryeom/board-game/internal/errors"
+	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
 	"github.com/Ryeom/board-game/log"
@@ -38,27 +38,27 @@ func SignUp(c echo.Context) error {
 	var req SignupRequest
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("SignUp - Bind Error: %v", err)
-		return appErrors.BadRequest("잘못된 요청 형식입니다", err)
+		return ae.BadRequest("잘못된 요청 형식입니다", err)
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("SignUp - Validation Error: %v", err)
-		return appErrors.BadRequest(err.Error(), err)
+		return ae.BadRequest(err.Error(), err)
 	}
 
 	// 이메일 중복 확인
 	existingUser, err := user.FindUserByEmail(req.Email)
 	if err != nil {
 		log.Logger.Errorf("SignUp - FindUserByEmail Error: %v", err)
-		return appErrors.InternalServerError("회원가입 처리 중 오류가 발생했습니다", err)
+		return ae.InternalServerError("회원가입 처리 중 오류가 발생했습니다", err)
 	}
 	if existingUser != nil {
-		return appErrors.Conflict("이미 존재하는 이메일입니다", nil)
+		return ae.Conflict("이미 존재하는 이메일입니다", nil)
 	}
 
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		log.Logger.Errorf("SignUp - Password Hashing Error: %v", err)
-		return appErrors.InternalServerError("비밀번호 처리 중 오류가 발생했습니다", err)
+		return ae.InternalServerError("비밀번호 처리 중 오류가 발생했습니다", err)
 	}
 
 	u := user.User{
@@ -71,7 +71,7 @@ func SignUp(c echo.Context) error {
 
 	if err := db.DB.Create(&u).Error; err != nil {
 		log.Logger.Errorf("SignUp - DB Create User Error: %v", err)
-		return appErrors.InternalServerError("회원가입에 실패했습니다", err)
+		return ae.InternalServerError("회원가입에 실패했습니다", err)
 	}
 
 	return c.JSON(http.StatusOK, Success(map[string]string{"message": "회원가입 성공"}, "회원가입이 성공적으로 완료되었습니다."))
@@ -93,23 +93,23 @@ func Login(c echo.Context) error {
 	var payload LoginRequest
 	if err := c.Bind(&payload); err != nil {
 		log.Logger.Errorf("Login - Bind Error: %v", err)
-		return appErrors.BadRequest("잘못된 요청 형식입니다", err)
+		return ae.BadRequest("잘못된 요청 형식입니다", err)
 	}
 	if err := c.Validate(&payload); err != nil {
 		log.Logger.Errorf("Login - Validation Error: %v", err)
-		return appErrors.BadRequest(err.Error(), err)
+		return ae.BadRequest(err.Error(), err)
 	}
 
 	u, err := user.FindUserByEmail(payload.Email)
 	if err != nil {
 		log.Logger.Errorf("Login - FindUserByEmail Error: %v", err)
-		return appErrors.InternalServerError("로그인 처리 중 오류가 발생했습니다", err)
+		return ae.InternalServerError("로그인 처리 중 오류가 발생했습니다", err)
 	}
 	if u == nil {
-		return appErrors.Unauthorized("이메일 또는 비밀번호가 올바르지 않습니다", err)
+		return ae.Unauthorized("이메일 또는 비밀번호가 올바르지 않습니다", err)
 	}
 	if !util.CheckPasswordHash(payload.Password, u.Password) {
-		return appErrors.Unauthorized("이메일 또는 비밀번호가 올바르지 않습니다", err)
+		return ae.Unauthorized("이메일 또는 비밀번호가 올바르지 않습니다", err)
 	}
 	if err := user.UpdateLastLoginAt(db.DB, u.ID.String()); err != nil {
 		log.Logger.Errorf("Login - UpdateLastLoginAt Error: %v", err)
@@ -118,7 +118,7 @@ func Login(c echo.Context) error {
 	token, err := auth.GenerateJWT(u.ID.String())
 	if err != nil {
 		log.Logger.Errorf("Login - JWT Generation Error: %v", err)
-		return appErrors.InternalServerError("인증 토큰 생성에 실패했습니다", err)
+		return ae.InternalServerError("인증 토큰 생성에 실패했습니다", err)
 	}
 
 	return c.JSON(http.StatusOK, Success(map[string]any{
