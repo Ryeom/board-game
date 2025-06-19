@@ -1,0 +1,272 @@
+{
+  "DEFAULT_INTERNAL_SERVER_ERROR": {
+    "ko": {
+      "message": "알 수 없는 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      "action": "문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "An unknown server error occurred. Please try again later.",
+      "action": "If the problem persists, please contact support."
+    },
+    "developerMessage": "요청된 오류 코드를 errors.json에서 찾을 수 없거나, 메시지 로딩에 문제가 발생했습니다.",
+    "service": "System",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "Critical"
+  },
+  "ERROR_AUTH_BIND": {
+    "ko": {
+      "message": "잘못된 요청 형식입니다.",
+      "action": "요청 본문(body)의 형식을 확인해주세요."
+    },
+    "en": {
+      "message": "Invalid request format.",
+      "action": "Please check the format of your request body."
+    },
+    "developerMessage": "Echo Context Bind 작업 중 오류 발생. 클라이언트 요청 본문 형식을 확인하세요.",
+    "service": "Auth",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_VALIDATION": {
+    "ko": {
+      "message": "입력 값이 유효하지 않습니다. 다시 확인해주세요.",
+      "action": "요청에 포함된 필드들의 유효성 검사 기준(예: 이메일 형식, 비밀번호 길이)을 확인해주세요."
+    },
+    "en": {
+      "message": "Invalid input values. Please check again.",
+      "action": "Please check the validation rules for the fields in your request (e.g., email format, password length)."
+    },
+    "developerMessage": "Echo Context Validate 작업 중 오류 발생. 요청 필드의 유효성 검사 실패.",
+    "service": "Auth",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_EMAIL_DUPLICATE": {
+    "ko": {
+      "message": "이미 존재하는 이메일입니다.",
+      "action": "다른 이메일을 사용하거나, 비밀번호를 잊으셨다면 '비밀번호 찾기'를 이용해주세요."
+    },
+    "en": {
+      "message": "Email already exists.",
+      "action": "Please use a different email or use 'Forgot Password' if you already have an account."
+    },
+    "developerMessage": "회원가입 시도 시, 요청된 이메일이 이미 DB에 존재합니다.",
+    "service": "Auth",
+    "type": "Conflict",
+    "httpStatus": 409,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_USER_LOOKUP_FAILED": {
+    "ko": {
+      "message": "회원가입/로그인 처리 중 오류가 발생했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "An error occurred during sign-up/login processing.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "user.FindUserByEmail 함수 호출 중 DB 또는 내부 오류 발생.",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_AUTH_PASSWORD_HASHING_FAILED": {
+    "ko": {
+      "message": "비밀번호 처리 중 오류가 발생했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "An error occurred during password processing.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "비밀번호 해싱 중 오류 발생 (예: bcrypt 라이브러리 문제).",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_AUTH_CREATE_USER_FAILED": {
+    "ko": {
+      "message": "회원가입에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to sign up.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "DB에 새로운 사용자 레코드 생성 중 오류 발생.",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_AUTH_INVALID_CREDENTIALS": {
+    "ko": {
+      "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+      "action": "입력하신 이메일과 비밀번호를 다시 확인하거나, 비밀번호 재설정을 이용해주세요."
+    },
+    "en": {
+      "message": "Invalid email or password.",
+      "action": "Please re-check your email and password, or use the password reset option."
+    },
+    "developerMessage": "로그인 시도 시, 이메일에 해당하는 사용자를 찾을 수 없거나 비밀번호 해시 불일치.",
+    "service": "Auth",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_JWT_GENERATION_FAILED": {
+    "ko": {
+      "message": "인증 토큰 생성에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to generate authentication token.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "JWT 생성 중 오류 발생 (예: 서명 키 문제, 라이브러리 오류).",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_USER_UNAUTHORIZED": {
+    "ko": {
+      "message": "인증되지 않은 사용자입니다.",
+      "action": "로그인이 필요합니다. 다시 로그인해주세요."
+    },
+    "en": {
+      "message": "Unauthorized user.",
+      "action": "Login is required. Please log in again."
+    },
+    "developerMessage": "컨텍스트에서 UserID를 찾을 수 없거나, 유효한 토큰이 제공되지 않음.",
+    "service": "User",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "High"
+  },
+  "ERROR_USER_PROFILE_FETCH_FAILED": {
+    "ko": {
+      "message": "사용자 정보를 가져오는데 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to retrieve user information.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "user.FindUserByID 함수 호출 중 DB 또는 내부 오류 발생.",
+    "service": "User",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_USER_NOT_FOUND": {
+    "ko": {
+      "message": "사용자를 찾을 수 없습니다.",
+      "action": "요청하신 사용자가 존재하지 않거나, 이미 탈퇴한 사용자일 수 있습니다."
+    },
+    "en": {
+      "message": "User not found.",
+      "action": "The requested user may not exist or may have already been deactivated."
+    },
+    "developerMessage": "user.FindUserByID 호출 결과 해당 ID의 사용자를 찾을 수 없음.",
+    "service": "User",
+    "type": "NotFound",
+    "httpStatus": 404,
+    "severity": "Medium"
+  },
+  "ERROR_USER_PROFILE_UPDATE_FAILED": {
+    "ko": {
+      "message": "프로필 업데이트에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to update profile.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "DB에 사용자 프로필 업데이트(Save) 중 오류 발생.",
+    "service": "User",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_USER_CURRENT_PASSWORD_MISMATCH": {
+    "ko": {
+      "message": "현재 비밀번호가 일치하지 않습니다.",
+      "action": "현재 사용 중인 비밀번호를 정확히 입력해주세요."
+    },
+    "en": {
+      "message": "Current password does not match.",
+      "action": "Please enter your current password accurately."
+    },
+    "developerMessage": "비밀번호 변경 시 현재 비밀번호 검증 실패.",
+    "service": "User",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "Medium"
+  },
+  "ERROR_USER_PASSWORD_CHANGE_FAILED": {
+    "ko": {
+      "message": "비밀번호 변경에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to change password.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "DB에 새 비밀번호 저장(Save) 중 오류 발생.",
+    "service": "User",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_ROOM_INVALID_REQUEST": {
+    "ko": {
+      "message": "잘못된 요청입니다.",
+      "action": "요청 본문(body)의 형식을 확인해주세요."
+    },
+    "en": {
+      "message": "Invalid request.",
+      "action": "Please check the format of your request body."
+    },
+    "developerMessage": "방 생성/업데이트 요청 바인딩 중 오류 발생.",
+    "service": "Room",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_NOT_FOUND": {
+    "ko": {
+      "message": "게임을 찾을 수 없습니다.",
+      "action": "게임 ID를 확인하거나, 새로 게임을 생성해주세요."
+    },
+    "en": {
+      "message": "Room not found.",
+      "action": "Please check the room ID or create a new room."
+    },
+    "developerMessage": "요청된 roomID에 해당하는 방을 찾을 수 없음.",
+    "service": "Room",
+    "type": "NotFound",
+    "httpStatus": 404,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_UNSUPPORTED_GAME_MODE": {
+    "ko": {
+      "message": "지원하지 않는 게임 모드입니다.",
+      "action": "유효한 게임 모드를 선택해주세요."
+    },
+    "en": {
+      "message": "Unsupported game mode.",
+      "action": "Please select a valid game mode."
+    },
+    "developerMessage": "UpdateRoom 요청에서 유효하지 않거나 지원되지 않는 gameMode가 전달됨.",
+    "service": "Room",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Medium"
+  }
+}
