@@ -2,7 +2,9 @@ package http
 
 import (
 	"github.com/Ryeom/board-game/internal/domain/room"
+	apperr "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
+	"github.com/Ryeom/board-game/log"
 	"net/http"
 	"time"
 
@@ -16,7 +18,8 @@ func CreateRoom(c echo.Context) error {
 		HostName string `json:"hostName"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "invalid request"})
+		log.Logger.Errorf("CreateRoom - Bind Error: %v", err)
+		return apperr.BadRequest(apperr.ErrorCodeRoomInvalidRequest, err)
 	}
 
 	host := &user.Session{
@@ -26,16 +29,13 @@ func CreateRoom(c echo.Context) error {
 	}
 	r := room.CreateRoom(c.Request().Context(), req.RoomID, req.HostID)
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"status": "success",
-		"data": map[string]any{
-			"roomId":      r.ID,
-			"gameMode":    r.GameMode,
-			"createdAt":   r.CreatedAt,
-			"host":        host.Name,
-			"playerCount": len(r.Players),
-		},
-	})
+	return c.JSON(http.StatusOK, Success(map[string]any{
+		"roomId":      r.ID,
+		"gameMode":    r.GameMode,
+		"createdAt":   r.CreatedAt,
+		"host":        host.Name,
+		"playerCount": len(r.Players),
+	}, "게임방이 성공적으로 생성되었습니다."))
 }
 
 func GetRoomList(c echo.Context) error {
@@ -59,20 +59,18 @@ func GetRoomList(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"status": "success",
-		"data":   summary,
-	})
+	return c.JSON(http.StatusOK, Success(summary, "게임방 목록 조회 성공"))
 }
 
+// DeleteRoom 함수는 특정 게임방을 삭제합니다.
 func DeleteRoom(c echo.Context) error {
 	roomID := c.Param("roomId")
 	_, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
-		return c.JSON(http.StatusNotFound, map[string]any{"status": "fail", "message": "room not found"})
+		return apperr.NotFound(apperr.ErrorCodeRoomNotFound, nil)
 	}
 	room.DeleteRoom(c.Request().Context(), roomID)
-	return c.JSON(http.StatusOK, map[string]any{"status": "success", "message": "room deleted"})
+	return c.JSON(http.StatusOK, Success(nil, "게임방이 성공적으로 삭제되었습니다."))
 }
 
 func UpdateRoom(c echo.Context) error {
@@ -80,24 +78,32 @@ func UpdateRoom(c echo.Context) error {
 
 	r, ok := room.GetRoom(c.Request().Context(), roomID)
 	if !ok {
-		return c.JSON(http.StatusNotFound, map[string]any{"status": "fail", "message": "room not found"})
+		return apperr.NotFound(apperr.ErrorCodeRoomNotFound, nil)
 	}
-	r.Save()
+
+	err := r.Save()
+	if err != nil {
+		log.Logger.Errorf("UpdateRoom - Save: %v", err)
+		return apperr.InternalServerError(apperr.ErrorCodeDefaultInternalServerError, nil)
+	}
+
 	var req struct {
 		GameMode room.GameMode `json:"gameMode"`
 	}
 	if err := c.Bind(&req); err != nil || req.GameMode == "" {
-		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "invalid gameMode"})
+		log.Logger.Errorf("UpdateRoom - Bind Error or Empty GameMode: %v", err)
+		return apperr.BadRequest(apperr.ErrorCodeRoomInvalidRequest, err)
 	}
 
 	switch req.GameMode {
 	case room.GameModeHanabi:
-		//r.GameMode = req.GameMode
-		//_ = room.SaveRoom(c.Request().Context(), r)
+		// r.GameMode = req.GameMode
+		// _ = room.SaveRoom(c.Request().Context(), r)
 		// TODO: r.Engine = hanabi.NewEngine() ... 등 추후 연결
 	default:
-		return c.JSON(http.StatusBadRequest, map[string]any{"status": "fail", "message": "unsupported game mode"})
+		// 지원하지 않는 게임 모드인 경우
+		return apperr.BadRequest(apperr.ErrorCodeRoomUnsupportedGameMode, nil)
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{"status": "success", "message": "game mode updated"})
+	return c.JSON(http.StatusOK, Success(nil, "게임 모드가 성공적으로 업데이트되었습니다."))
 }
