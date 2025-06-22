@@ -96,14 +96,6 @@ type SocketEvent struct {
 	Filter map[string]interface{} `json:"filter"`
 }
 
-type userSessionWrapper struct {
-	*user.Session
-}
-
-func (u *userSessionWrapper) GetID() string    { return u.ID }
-func (u *userSessionWrapper) GetName() string  { return u.Name }
-func (u *userSessionWrapper) IsHostUser() bool { return u.IsHost }
-
 func generateSocketID(c echo.Context, addr net.Addr) string {
 	ip := c.RealIP()
 	remoteIP := addr.String()
