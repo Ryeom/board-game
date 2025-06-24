@@ -9,6 +9,7 @@ import (
 	"github.com/Ryeom/board-game/log"
 	"github.com/labstack/echo/v4"
 	"net/http"
+	"strings"
 )
 
 type SignupRequest struct {
@@ -125,4 +126,33 @@ func Login(c echo.Context) error {
 		"user_id":  u.ID.String(),
 		"nickname": u.Nickname,
 	}, "로그인이 성공적으로 완료되었습니다."))
+}
+
+// @Summary 로그아웃
+// @Description 현재 사용 중인 JWT 토큰을 무효화하여 즉시 로그아웃 처리합니다.
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Success 200 {object} HttpResult "로그아웃 성공"
+// @Failure 400 {object} HttpResult "잘못된 요청 형식 (토큰 없음)"
+// @Failure 401 {object} HttpResult "인증되지 않은 토큰 또는 처리 실패"
+// @Failure 500 {object} HttpResult "서버 오류"
+// @Router /board-game/api/auth/logout [post]
+func Logout(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		log.Logger.Error("Logout - Authorization header missing or malformed")
+		return apperr.BadRequest(apperr.ErrorCodeAuthInvalidToken, nil)
+	}
+
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+
+	// 토큰을 블랙리스트에 추가
+	if err := auth.AddTokenToBlacklist(c.Request().Context(), tokenStr); err != nil {
+		log.Logger.Errorf("Logout - Failed to add token to blacklist: %v", err)
+		return apperr.InternalServerError(apperr.ErrorCodeAuthLogoutFailed, err)
+	}
+
+	return c.JSON(http.StatusOK, Success(nil, "성공적으로 로그아웃되었습니다."))
 }

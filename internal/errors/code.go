@@ -15,14 +15,18 @@ const (
 
 // Authentication Error Codes
 const (
-	ErrorCodeAuthBind                  = "ERROR_AUTH_BIND"
-	ErrorCodeAuthValidation            = "ERROR_AUTH_VALIDATION"
-	ErrorCodeAuthEmailDuplicate        = "ERROR_AUTH_EMAIL_DUPLICATE"
-	ErrorCodeAuthUserLookupFailed      = "ERROR_AUTH_USER_LOOKUP_FAILED"
-	ErrorCodeAuthPasswordHashingFailed = "ERROR_AUTH_PASSWORD_HASHING_FAILED"
-	ErrorCodeAuthCreateUserFailed      = "ERROR_AUTH_CREATE_USER_FAILED"
-	ErrorCodeAuthInvalidCredentials    = "ERROR_AUTH_INVALID_CREDENTIALS"
-	ErrorCodeAuthJwtGenerationFailed   = "ERROR_AUTH_JWT_GENERATION_FAILED"
+	ErrorCodeAuthBind                      = "ERROR_AUTH_BIND"
+	ErrorCodeAuthValidation                = "ERROR_AUTH_VALIDATION"
+	ErrorCodeAuthEmailDuplicate            = "ERROR_AUTH_EMAIL_DUPLICATE"
+	ErrorCodeAuthUserLookupFailed          = "ERROR_AUTH_USER_LOOKUP_FAILED"
+	ErrorCodeAuthPasswordHashingFailed     = "ERROR_AUTH_PASSWORD_HASHING_FAILED"
+	ErrorCodeAuthCreateUserFailed          = "ERROR_AUTH_CREATE_USER_FAILED"
+	ErrorCodeAuthInvalidCredentials        = "ERROR_AUTH_INVALID_CREDENTIALS"
+	ErrorCodeAuthJwtGenerationFailed       = "ERROR_AUTH_JWT_GENERATION_FAILED"
+	ErrorCodeAuthInvalidToken              = "ERROR_AUTH_INVALID_TOKEN"
+	ErrorCodeAuthLogoutFailed              = "ERROR_AUTH_LOGOUT_FAILED"
+	ErrorCodeAuthTokenBlacklistCheckFailed = "ERROR_AUTH_TOKEN_BLACKLIST_CHECK_FAILED"
+	ErrorCodeAuthTokenBlacklisted          = "ERROR_AUTH_TOKEN_BLACKLISTED"
 )
 
 // User Error Codes

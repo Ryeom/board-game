@@ -119,18 +119,21 @@ func RemoveList(target string, key, value string) bool {
 	return true
 }
 
-func GetString(target string, key string) string {
-	rdb := Client[target]
+func GetString(target string, key string) (string, error) {
+	rdb := Client[target] //
 	if rdb == nil {
-		return ""
+		return "", errors.New(fmt.Sprintf("redis client not found for target: %s", target))
 	}
 	ctx := context.Background()
 	str, err := rdb.Get(ctx, key).Result()
 	if err != nil {
-		log.Logger.Error(err)
-		return ""
+		if errors.Is(err, redis.Nil) {
+			return "", nil
+		}
+		log.Logger.Errorf("Redis GetString ERROR for key %s in target %s: %v", key, target, err)
+		return "", err
 	}
-	return str
+	return str, nil
 }
 
 func GetExpireTime(target string, key string) int {
@@ -284,15 +287,15 @@ func SaveJSON(target string, key string, value interface{}, ttl time.Duration) {
 }
 
 func GetJSON(target string, key string, dest interface{}) bool {
-	rdb := Client[target] //
+	rdb := Client[target]
 	if rdb == nil {
-		log.Logger.Errorf("GetJSON - Redis client not found for target: %s", target) // 에러 로깅 추가
+		log.Logger.Errorf("GetJSON - Redis client not found for target: %s", target)
 		return false
 	}
 	ctx := context.Background()
 	val, err := rdb.Get(ctx, key).Result()
 	if err != nil {
-		if errors.Is(err, redis.Nil) { // 키가 존재하지 않는 경우
+		if errors.Is(err, redis.Nil) {
 			return false
 		}
 		log.Logger.Errorf("Redis Get ERROR for key %s: %v", key, err)
@@ -342,6 +345,20 @@ func RemoveSetMembers(target string, key string, members ...interface{}) error {
 	err := rdb.SRem(ctx, key, members...).Err()
 	if err != nil {
 		log.Logger.Errorf("Redis SRem ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
+}
+
+func SetStringWithTTL(target string, key string, value string, ttl time.Duration) error {
+	rdb := Client[target] //
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	err := rdb.Set(ctx, key, value, ttl).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis SetWithTTL ERROR for key %s in target %s: %v", key, target, err)
 		return err
 	}
 	return nil

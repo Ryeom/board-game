@@ -22,6 +22,8 @@ func InitializeRouter(e *echo.Echo) {
 		apiGroup := bg.Group("/api")
 		apiGroup.Use(auth.JWTMiddleware)
 		{
+			apiGroup.POST("/auth/logout", Logout)
+
 			apiGroup.GET("/rooms", GetRoomList)
 			apiGroup.POST("/rooms", CreateRoom)
 			apiGroup.PATCH("/rooms/:roomId", UpdateRoom)

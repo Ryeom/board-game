@@ -6,6 +6,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"time"
+
+	"github.com/Ryeom/board-game/internal/util" // util 패키지 임포트 추가
 )
 
 type Role string
@@ -51,8 +53,7 @@ func FindUserByEmail(email string) (*User, error) {
 }
 
 func CheckPassword(input, hashed string) bool {
-	// 실제로는 bcrypt.CompareHashAndPassword 등 사용해야 함
-	return input == hashed
+	return util.CheckPasswordHash(input, hashed)
 }
 
 func SoftDeleteUser(db *gorm.DB, id string) error {

@@ -23,6 +23,7 @@ import (
 // @Failure 500 {object} HttpResult "서버 오류"
 // @Router /board-game/api/user/profile [get]
 func GetUserProfile(c echo.Context) error {
+	// JWTMiddleware에서 설정한 userID 가져오기
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("GetUserProfile - UserID not found in context")
@@ -38,14 +39,15 @@ func GetUserProfile(c echo.Context) error {
 		return apperr.NotFound(apperr.ErrorCodeUserNotFound, nil)
 	}
 
+	// 비밀번호와 같은 민감 정보는 제외하고 반환
 	responseData := map[string]interface{}{
 		"userId":       u.ID.String(),
 		"email":        u.Email,
 		"nickname":     u.Nickname,
-		"profileImage": u.ProfileImage,
+		"profileImage": u.ProfileImage, // nil일 수 있음
 		"role":         u.Role,
 		"isActive":     u.IsActive,
-		"lastLoginAt":  u.LastLoginAt,
+		"lastLoginAt":  u.LastLoginAt, // nil일 수 있음
 		"createdAt":    u.CreatedAt,
 		"updatedAt":    u.UpdatedAt,
 	}
@@ -54,8 +56,8 @@ func GetUserProfile(c echo.Context) error {
 }
 
 type UpdateProfileRequest struct {
-	Nickname     *string `json:"nickname" validate:"omitempty,min=2,max=20"`
-	ProfileImage *string `json:"profileImage" validate:"omitempty,url"`
+	Nickname     *string `json:"nickname" validate:"omitempty,min=2,max=20"` // 닉네임 (선택적, 최소 2자, 최대 20자)
+	ProfileImage *string `json:"profileImage" validate:"omitempty,url"`      // 프로필 이미지 URL (선택적, URL 형식 검사)
 }
 
 // UpdateUserProfile - 사용자 프로필 업데이트
@@ -102,13 +104,14 @@ func UpdateUserProfile(c echo.Context) error {
 		u.Nickname = *req.Nickname
 	}
 	if req.ProfileImage != nil {
-		if *req.ProfileImage == "" {
+		if *req.ProfileImage == "" { // 클라이언트가 이미지 삭제를 요청한 경우
 			u.ProfileImage = nil
 		} else if u.ProfileImage == nil || *req.ProfileImage != *u.ProfileImage {
 			u.ProfileImage = req.ProfileImage
 		}
 	}
 
+	// 변경 사항 저장
 	if err := db.DB.Save(u).Error; err != nil {
 		log.Logger.Errorf("UpdateUserProfile - DB Save Error for ID %s: %v", userID, err)
 		return apperr.InternalServerError(apperr.ErrorCodeUserProfileUpdateFailed, err)
@@ -119,7 +122,7 @@ func UpdateUserProfile(c echo.Context) error {
 
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword" validate:"required"`
-	NewPassword     string `json:"newPassword" validate:"required,min=8"`
+	NewPassword     string `json:"newPassword" validate:"required,min=8"` // 새 비밀번호 최소 길이 8자
 }
 
 // ChangePassword - 사용자 비밀번호 변경
@@ -162,16 +165,19 @@ func ChangePassword(c echo.Context) error {
 		return apperr.NotFound(apperr.ErrorCodeUserNotFound, err)
 	}
 
+	// 현재 비밀번호 검증
 	if !util.CheckPasswordHash(req.CurrentPassword, u.Password) {
 		return apperr.Unauthorized(apperr.ErrorCodeUserCurrentPasswordMismatch, nil)
 	}
 
+	// 새 비밀번호 해싱
 	hashedNewPassword, err := util.HashPassword(req.NewPassword)
 	if err != nil {
 		log.Logger.Errorf("ChangePassword - Password Hashing Error: %v", err)
 		return apperr.InternalServerError(apperr.ErrorCodeAuthPasswordHashingFailed, err)
 	}
 
+	// DB에 새 비밀번호 저장
 	u.Password = hashedNewPassword
 	if err := db.DB.Save(u).Error; err != nil {
 		log.Logger.Errorf("ChangePassword - DB Save Error for ID %s: %v", userID, err)

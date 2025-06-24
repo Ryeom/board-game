@@ -268,5 +268,65 @@
     "type": "BadRequest",
     "httpStatus": 400,
     "severity": "Medium"
+  },
+  "ERROR_AUTH_INVALID_TOKEN": {
+    "ko": {
+      "message": "유효하지 않은 인증 토큰입니다.",
+      "action": "다시 로그인하여 새로운 토큰을 발급받아주세요."
+    },
+    "en": {
+      "message": "Invalid authentication token.",
+      "action": "Please log in again to get a new token."
+    },
+    "developerMessage": "제공된 JWT가 유효하지 않거나 만료되었습니다.",
+    "service": "Auth",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_LOGOUT_FAILED": {
+    "ko": {
+      "message": "로그아웃 처리 중 오류가 발생했습니다.",
+      "action": "잠시 후 다시 시도하거나 브라우저 캐시를 지워주세요."
+    },
+    "en": {
+      "message": "An error occurred during logout processing.",
+      "action": "Please try again shortly or clear your browser cache."
+    },
+    "developerMessage": "로그아웃 처리(예: 세션 무효화, 토큰 블랙리스트 추가) 중 오류 발생.",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "Medium"
+  },
+  "ERROR_AUTH_TOKEN_BLACKLIST_CHECK_FAILED": {
+    "ko": {
+      "message": "인증 토큰 유효성 검사 중 오류가 발생했습니다.",
+      "action": "잠시 후 다시 시도하거나, 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "An error occurred during authentication token validation.",
+      "action": "Please try again shortly, or contact support if the problem persists."
+    },
+    "developerMessage": "토큰 블랙리스트 확인 시스템과의 통신 오류 또는 내부 처리 실패.",
+    "service": "Auth",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_AUTH_TOKEN_BLACKLISTED": {
+    "ko": {
+      "message": "인증 토큰이 이미 무효화되었습니다.",
+      "action": "다시 로그인하여 새로운 토큰을 발급받아주세요."
+    },
+    "en": {
+      "message": "Your authentication token has been invalidated.",
+      "action": "Please log in again to get a new token."
+    },
+    "developerMessage": "제공된 JWT가 블랙리스트에 등록되어 있습니다 (예: 로그아웃, 비밀번호 변경 등으로 인한 무효화).",
+    "service": "Auth",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "Medium"
   }
 }

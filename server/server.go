@@ -7,6 +7,7 @@ import (
 	_ "github.com/Ryeom/board-game/docs" // swagger docs import
 	"github.com/Ryeom/board-game/infra/db"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
+	"github.com/Ryeom/board-game/internal/auth"
 	ae "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/util"
 	l "github.com/Ryeom/board-game/log"
@@ -31,6 +32,7 @@ func Initialize(e *echo.Echo) {
 	redisutil.Initialize()
 	db.Initialize()
 	appHttp.InitializeRouter(e)
+	auth.Initialize()
 
 	ctx := context.Background()
 	ws.GlobalBroadcaster = ws.NewRedisBroadcaster(ctx)
