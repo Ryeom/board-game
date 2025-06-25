@@ -363,3 +363,45 @@ func SetStringWithTTL(target string, key string, value string, ttl time.Duration
 	}
 	return nil
 }
+
+func RPushList(target string, key string, values ...interface{}) error {
+	rdb := Client[target]
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	err := rdb.RPush(ctx, key, values...).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis RPushList ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
+}
+
+func LRangeList(target string, key string, start, stop int64) ([]string, error) {
+	rdb := Client[target]
+	if rdb == nil {
+		return nil, errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	result, err := rdb.LRange(ctx, key, start, stop).Result()
+	if err != nil {
+		log.Logger.Errorf("Redis LRangeList ERROR for key %s in target %s: %v", key, target, err)
+		return nil, err
+	}
+	return result, nil
+}
+
+func LTrimList(target string, key string, start, stop int64) error {
+	rdb := Client[target]
+	if rdb == nil {
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
+	}
+	ctx := context.Background()
+	err := rdb.LTrim(ctx, key, start, stop).Err()
+	if err != nil {
+		log.Logger.Errorf("Redis LTrimList ERROR for key %s in target %s: %v", key, target, err)
+		return err
+	}
+	return nil
+}

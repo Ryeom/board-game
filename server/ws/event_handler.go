@@ -12,17 +12,17 @@ func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEv
 	handler(ctx, user, event)
 }
 
-func getHandler(eventType string) EventHandler {
+func getHandler(eventType string) ExecutionEvent {
 	if handler, ok := eventHandlers[eventType]; ok {
 		return handler
 	}
 	return HandleDefault
 }
 
-type EventHandler func(ctx context.Context, user *user.Session, event SocketEvent)
+type ExecutionEvent func(ctx context.Context, user *user.Session, event SocketEvent)
 
-func mergeHandlers(maps ...map[string]EventHandler) map[string]EventHandler {
-	merged := make(map[string]EventHandler)
+func mergeHandlers(maps ...map[string]ExecutionEvent) map[string]ExecutionEvent {
+	merged := make(map[string]ExecutionEvent)
 	for _, m := range maps {
 		for k, v := range m {
 			merged[k] = v
@@ -40,7 +40,7 @@ var eventHandlers = mergeHandlers(
 )
 
 // 방 관련 이벤트 핸들러
-var roomEvents = map[string]EventHandler{
+var roomEvents = map[string]ExecutionEvent{
 	"room.create": HandleRoomCreate, // 방 생성
 	"room.join":   HandleRoomJoin,   // 방 참가
 	"room.leave":  HandleRoomLeave,  // 방 나가기
@@ -51,7 +51,7 @@ var roomEvents = map[string]EventHandler{
 }
 
 // 유저 관련 이벤트 핸들러
-var userEvents = map[string]EventHandler{
+var userEvents = map[string]ExecutionEvent{
 	"user.identify":   HandleUserIdentify,   // 유저 초기 식별
 	"user.update":     HandleUserUpdate,     // 유저 정보 업데이트
 	"user.disconnect": HandleUserDisconnect, // 유저 연결 종료
@@ -59,7 +59,7 @@ var userEvents = map[string]EventHandler{
 }
 
 // 게임 관련 이벤트 핸들러
-var gameEvents = map[string]EventHandler{
+var gameEvents = map[string]ExecutionEvent{
 	"game.start":  HandleGameStart,  // 게임 시작
 	"game.end":    HandleGameEnd,    // 게임 종료
 	"game.action": HandleGameAction, // 플레이어 행동
@@ -69,14 +69,14 @@ var gameEvents = map[string]EventHandler{
 }
 
 // 채팅 관련 이벤트 핸들러
-var chatEvents = map[string]EventHandler{
+var chatEvents = map[string]ExecutionEvent{
 	"chat.send":    HandleChatSend,    // 채팅 메시지 전송
 	"chat.history": HandleChatHistory, // 채팅 내역 조회
 	"chat.mute":    HandleChatMute,    // 유저 채팅 제한
 }
 
 // 시스템 관련 이벤트 핸들러
-var systemEvents = map[string]EventHandler{
+var systemEvents = map[string]ExecutionEvent{
 	"system.ping":   HandleSystemPing,   // 핑 체크
 	"system.error":  HandleSystemError,  // 에러 전달
 	"system.notice": HandleSystemNotice, // 시스템 공지

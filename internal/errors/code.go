@@ -27,6 +27,14 @@ const (
 	ErrorCodeAuthLogoutFailed              = "ERROR_AUTH_LOGOUT_FAILED"
 	ErrorCodeAuthTokenBlacklistCheckFailed = "ERROR_AUTH_TOKEN_BLACKLIST_CHECK_FAILED"
 	ErrorCodeAuthTokenBlacklisted          = "ERROR_AUTH_TOKEN_BLACKLISTED"
+	ErrorCodeAuthInvalidRequest            = "ERROR_AUTH_INVALID_REQUEST"
+	ErrorCodeWSExpectedIdentify            = "ERROR_WS_EXPECTED_IDENTIFICATE"
+	ErrorCodeWSInitialSessionSaveFailed    = "ERROR_WS_INITIAL_SESSION_SAVE_FAILED"
+	ErrorCodeWSInvalidMessageFormat        = "ERROR_WS_INVALID_MESSAGE_FORMAT"
+	ErrorCodeChatNotInRoom                 = "ERROR_CHAT_NOT_IN_ROOM"
+	ErrorCodeChatEmptyMessage              = "ERROR_CHAT_EMPTY_MESSAGE"
+	ErrorCodeChatSendFailed                = "ERROR_CHAT_SEND_FAILED"
+	ErrorCodeChatHistoryFetchFailed        = "ERROR_CHAT_HISTORY_FAILURE"
 )
 
 // User Error Codes

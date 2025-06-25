@@ -412,12 +412,6 @@ func HandleGamePause(ctx context.Context, u *user.Session, event SocketEvent) {}
 // HandleGameInfo 게임 설명 출력
 func HandleGameInfo(ctx context.Context, u *user.Session, event SocketEvent) {}
 
-// HandleChatSend 채팅 메시지 전송
-func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {}
-
-// HandleChatHistory 채팅 내역 조회
-func HandleChatHistory(ctx context.Context, u *user.Session, event SocketEvent) {}
-
 // HandleChatMute 유저 채팅 제한
 func HandleChatMute(ctx context.Context, u *user.Session, event SocketEvent) {}
 

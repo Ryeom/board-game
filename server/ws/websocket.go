@@ -1,10 +1,11 @@
 package ws
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	apperr "github.com/Ryeom/board-game/internal/errors"
 	"github.com/Ryeom/board-game/internal/user"
+	"github.com/Ryeom/board-game/log"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"net"
@@ -31,20 +32,26 @@ func Websocket(c echo.Context) error {
 	})
 
 	socketId := generateSocketID(c, conn.RemoteAddr())
-	ctx := context.Background()
+	//ctx := context.Background() // WebSocket 핸들러 컨텍스트
+
+	// 최초에는 기본 세션 정보만 생성. RoomID 등은 아직 모름.
 	connectedUser := user.NewUserSession(socketId, "", "", c.RealIP(), c.Request().UserAgent(), false, conn)
 
 	// 최초 identify 메시지 수신
 	var initData websocketInitData
 	if _, msg, err := conn.ReadMessage(); err != nil {
-		return err
+		fmt.Println(time.Now(), "❌ WebSocket Init Read Error:", err)
+		return err // 초기 메시지 수신 실패 시 연결 종료
 	} else if err := json.Unmarshal(msg, &initData); err != nil {
-		return err
+		fmt.Println(time.Now(), "❌ WebSocket Init Unmarshal Error:", err)
+		return apperr.BadRequest(apperr.ErrorCodeAuthInvalidRequest, err)
 	}
 
 	if initData.Type != "identify" {
-		return echo.NewHTTPError(http.StatusBadRequest, "expected identify event")
+		fmt.Println(time.Now(), "❌ WebSocket Init - Expected 'identify' event, got:", initData.Type)
+		return apperr.BadRequest(apperr.ErrorCodeWSExpectedIdentify, nil)
 	}
+
 	connectedUser.Name = initData.Name
 
 	if cookie, err := c.Cookie("user_name"); err == nil {
@@ -52,7 +59,8 @@ func Websocket(c echo.Context) error {
 	}
 
 	if err := user.SaveUserSession(connectedUser); err != nil {
-		return err
+		log.Logger.Errorf("Websocket - Initial SaveUserSession error: %v", err)
+		return apperr.InternalServerError(apperr.ErrorCodeWSInitialSessionSaveFailed, err)
 	}
 
 	fmt.Printf(
@@ -63,22 +71,19 @@ func Websocket(c echo.Context) error {
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println(time.Now(), "❌ Disconnected:", err)
-			_ = user.DeleteUserSession(socketId)
-			fmt.Printf(
-				"[Disconnected] ID: %s | Name: %s | Room: %s | LastPingAt: %s\n",
-				connectedUser.ID, connectedUser.Name, connectedUser.RoomID, connectedUser.LastPingAt.Format(time.RFC3339),
-			)
+			log.Logger.Infof("WebSocket Disconnected for ID: %s, Name: %s, Error: %v", connectedUser.ID, connectedUser.Name, err)
+			HandleUserDisconnect(c.Request().Context(), connectedUser, SocketEvent{Type: "user.disconnect"})
 			break
 		}
 
 		var event SocketEvent
 		if err := json.Unmarshal(msg, &event); err != nil {
-			fmt.Println(time.Now(), "⚠️ invalid message format:", err)
+			log.Logger.Warningf("WebSocket invalid message format from ID: %s, Error: %v, Message: %s", connectedUser.ID, err, string(msg))
+			sendError(connectedUser, apperr.BadRequest(apperr.ErrorCodeWSInvalidMessageFormat, err))
 			continue
 		}
 
-		dispatchSocketEvent(ctx, connectedUser, event)
+		dispatchSocketEvent(c.Request().Context(), connectedUser, event)
 	}
 	return nil
 }
