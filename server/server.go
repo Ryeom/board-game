@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/Ryeom/board-game/docs" // swagger docs import
 	"github.com/Ryeom/board-game/infra/db"
+	"github.com/Ryeom/board-game/infra/mongo"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/auth"
 	ae "github.com/Ryeom/board-game/internal/errors"
@@ -33,6 +34,7 @@ func Initialize(e *echo.Echo) {
 	db.Initialize()
 	appHttp.InitializeRouter(e)
 	auth.Initialize()
+	mongo.Initialize()
 
 	ctx := context.Background()
 	ws.GlobalBroadcaster = ws.NewRedisBroadcaster(ctx)
