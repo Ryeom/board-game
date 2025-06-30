@@ -49,9 +49,10 @@ const (
 
 // Room Error Codes
 const (
-	ErrorCodeRoomInvalidRequest      = "ERROR_ROOM_INVALID_REQUEST"
-	ErrorCodeRoomNotFound            = "ERROR_ROOM_NOT_FOUND"
-	ErrorCodeRoomUnsupportedGameMode = "ERROR_ROOM_UNSUPPORTED_GAME_MODE"
+	ErrorCodeRoomInvalidRequest        = "ERROR_ROOM_INVALID_REQUEST"
+	ErrorCodeRoomNotFound              = "ERROR_ROOM_NOT_FOUND"
+	ErrorCodeRoomUnsupportedGameMode   = "ERROR_ROOM_UNSUPPORTED_GAME_MODE"
+	ErrorCodeRoomPasswordHashingFailed = "ERROR_ROOM_PASSWORD_HASHING_FAILED"
 )
 
 type ErrorMessage struct {
