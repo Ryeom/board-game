@@ -447,5 +447,228 @@
     "type": "InternalServerError",
     "httpStatus": 500,
     "severity": "High"
-  }
+  },
+  "ERROR_WS_EXPECTED_IDENTIFICATION": {
+    "ko": {
+      "message": "웹소켓 연결을 위해 먼저 인증이 필요합니다.",
+      "action": "올바른 인증 토큰과 함께 identification 메시지를 보내주세요."
+    },
+    "en": {
+      "message": "Websocket connection requires identification first.",
+      "action": "Please send an identification message with a valid authentication token."
+    },
+    "developerMessage": "웹소켓 연결 후 첫 메시지가 identification 타입이 아님. 인증 절차 미준수.",
+    "service": "WebSocket",
+    "type": "Unauthorized",
+    "httpStatus": 401,
+    "severity": "High"
+  },
+  "ERROR_ROOM_PASSWORD_HASHING_FAILED": {
+    "ko": {
+      "message": "게임방 비밀번호 처리 중 오류가 발생했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "An error occurred during game room password processing.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방 비밀번호 해싱 중 오류 발생 (예: bcrypt 라이브러리 문제).",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_CHAT_HISTORY_FETCH_FAILED": {
+    "ko": {
+      "message": "채팅 기록을 가져오는데 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to fetch chat history.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "채팅 기록 저장소(DB, Redis 등) 조회 중 오류 발생.",
+    "service": "Chat",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },"ERROR_ROOM_JOIN_FAILED": {
+  "ko": {
+    "message": "게임방 입장에 실패했습니다.",
+    "action": "잠시 후 다시 시도하거나, 게임방 ID를 확인해주세요."
+  },
+  "en": {
+    "message": "Failed to join the game room.",
+    "action": "Please try again shortly or verify the room ID."
+  },
+  "developerMessage": "게임방 입장 처리 중 오류 발생 (예: 최대 인원 초과, 알 수 없는 방 ID).",
+  "service": "Room",
+  "type": "BadRequest",
+  "httpStatus": 400,
+  "severity": "Medium"
+},
+  "ERROR_ROOM_CREATION_FAILED": {
+    "ko": {
+      "message": "게임방 생성에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to create game room.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방 생성 로직 또는 저장(DB/Redis) 중 오류 발생.",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_ROOM_DELETE_FAILED": {
+    "ko": {
+      "message": "게임방 삭제에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to delete game room.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방 삭제 로직 또는 저장소(DB/Redis)에서 오류 발생.",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_ROOM_ALREADY_JOINED": {
+    "ko": {
+      "message": "이미 해당 게임방에 참여하고 있습니다.",
+      "action": "다른 게임방에 입장하거나, 현재 방에서 게임을 계속 진행해주세요."
+    },
+    "en": {
+      "message": "You have already joined this game room.",
+      "action": "Please join another room or continue playing in the current room."
+    },
+    "developerMessage": "사용자가 이미 참여하고 있는 게임방에 다시 입장 시도.",
+    "service": "Room",
+    "type": "Conflict",
+    "httpStatus": 409,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_LEAVE_FAILED": {
+    "ko": {
+      "message": "게임방을 떠나는데 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to leave the game room.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방에서 나가는 처리 중 오류 발생.",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_NOT_HOST": {
+    "ko": {
+      "message": "게임방 호스트만 가능한 작업입니다.",
+      "action": "게임방 호스트에게 요청하거나, 호스트에게 권한을 요청해주세요."
+    },
+    "en": {
+      "message": "Only the game room host can perform this action.",
+      "action": "Please ask the room host or request host privileges."
+    },
+    "developerMessage": "호스트 권한이 필요한 작업을 비호스트가 시도함.",
+    "service": "Room",
+    "type": "Forbidden",
+    "httpStatus": 403,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_UPDATE_FAILED": {
+    "ko": {
+      "message": "게임방 정보 업데이트에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to update game room information.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방 정보 업데이트(Save) 중 오류 발생.",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "High"
+  },
+  "ERROR_ROOM_USER_NOT_IN_ROOM": {
+    "ko": {
+      "message": "요청한 사용자가 해당 게임방에 없습니다.",
+      "action": "사용자가 올바른 게임방에 있는지 확인해주세요."
+    },
+    "en": {
+      "message": "The requested user is not in this game room.",
+      "action": "Please verify if the user is in the correct game room."
+    },
+    "developerMessage": "특정 게임방 내 사용자 관련 작업 시, 해당 사용자가 방에 존재하지 않음.",
+    "service": "Room",
+    "type": "NotFound",
+    "httpStatus": 404,
+    "severity": "Medium"
+  },
+  "ERROR_ROOM_KICK_FAILED": {
+    "ko": {
+      "message": "사용자 강퇴에 실패했습니다.",
+      "action": "잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의해주세요."
+    },
+    "en": {
+      "message": "Failed to kick user from the room.",
+      "action": "Please try again shortly. If the problem persists, contact support."
+    },
+    "developerMessage": "게임방에서 사용자 강퇴 처리 중 오류 발생.",
+    "service": "Room",
+    "type": "InternalServerError",
+    "httpStatus": 500,
+    "severity": "Medium"
+  },
+  "ERROR_USER_NO_UPDATES": {
+    "ko": {
+      "message": "업데이트할 정보가 없습니다.",
+      "action": "변경하려는 정보가 있는지 확인해주세요."
+    },
+    "en": {
+      "message": "No information to update.",
+      "action": "Please check if there is any information you wish to change."
+    },
+    "developerMessage": "사용자 프로필 업데이트 요청 시, 실제로 변경할 필드가 없음.",
+    "service": "User",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Low"
+  },
+  "ERROR_USER_INVALID_REQUEST": {
+    "ko": {
+      "message": "사용자 요청 형식이 유효하지 않습니다.",
+      "action": "요청 본문의 필드들을 확인해주세요."
+    },
+    "en": {
+      "message": "Invalid user request format.",
+      "action": "Please check the fields in your request body."
+    },
+    "developerMessage": "사용자 관련 요청(예: 바인딩, 유효성 검사) 처리 중 오류 발생. 클라이언트 요청 형식 검토 필요.",
+    "service": "User",
+    "type": "BadRequest",
+    "httpStatus": 400,
+    "severity": "Medium"
+  }, "ERROR_WS_UNKNOWN_EVENT": {
+  "ko": {
+    "message": "알 수 없거나 지원되지 않는 웹소켓 이벤트입니다.",
+    "action": "유효한 웹소켓 이벤트 타입으로 요청을 보내주세요."
+  },
+  "en": {
+    "message": "Unknown or unsupported websocket event.",
+    "action": "Please send your request with a valid websocket event type."
+  },
+  "developerMessage": "클라이언트로부터 알 수 없거나 정의되지 않은 웹소켓 이벤트 타입 수신.",
+  "service": "WebSocket",
+  "type": "BadRequest",
+  "httpStatus": 400,
+  "severity": "Low"
+}
 }
