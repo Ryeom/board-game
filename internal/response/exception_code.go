@@ -26,16 +26,21 @@ const (
 	ErrorCodeChatEmptyMessage              = "ERROR_CHAT_EMPTY_MESSAGE"
 	ErrorCodeChatSendFailed                = "ERROR_CHAT_SEND_FAILED"
 	ErrorCodeChatHistoryFetchFailed        = "ERROR_CHAT_HISTORY_FAILURE"
+	ErrorCodeAuthUpdateLastLoginAt         = "ERROR_AUTH_UPDATE_LAST_LOGIN_at"
 )
 
 // User Error Codes
 const (
-	ErrorCodeUserUnauthorized            = "ERROR_USER_UNAUTHORIZED"
-	ErrorCodeUserProfileFetchFailed      = "ERROR_USER_PROFILE_FETCH_FAILED"
-	ErrorCodeUserNotFound                = "ERROR_USER_NOT_FOUND"
-	ErrorCodeUserProfileUpdateFailed     = "ERROR_USER_PROFILE_UPDATE_FAILED"
-	ErrorCodeUserCurrentPasswordMismatch = "ERROR_USER_CURRENT_PASSWORD_MISMATCH"
-	ErrorCodeUserPasswordChangeFailed    = "ERROR_USER_PASSWORD_CHANGE_FAILED"
+	ErrorCodeUserUnauthorized                   = "ERROR_USER_UNAUTHORIZED"
+	ErrorCodeUserProfileFetchFailed             = "ERROR_USER_PROFILE_FETCH_FAILED"
+	ErrorCodeUserNotFound                       = "ERROR_USER_NOT_FOUND"
+	ErrorCodeUserProfileUpdateFailed            = "ERROR_USER_PROFILE_UPDATE_FAILED"
+	ErrorCodeUserCurrentPasswordMismatch        = "ERROR_USER_CURRENT_PASSWORD_MISMATCH"
+	ErrorCodeUserPasswordChangeFailed           = "ERROR_USER_PASSWORD_CHANGE_FAILED"
+	ErrorCodeUserProfileValidationFailed        = "ERROR_USER_PROFILE_VALIDATION_FAILED"
+	ErrorCodeUserProfileInvalidRequest          = "ERROR_USER_PROFILE_INVALID_REQUEST"
+	ErrorCodeUserChangePasswordValidationFailed = "ERROR_USER_PASSWORD_CHANGE_VALIDATION_FAILED"
+	ErrorCodeUserChangePasswordNotFound         = "ERROR_USER_CHANGE_PASSWORD_NOT_FOUND"
 )
 
 // Room Error Codes

@@ -2,7 +2,7 @@ package http
 
 import (
 	"github.com/Ryeom/board-game/infra/db"
-	apperr "github.com/Ryeom/board-game/internal/errors"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
 	"github.com/Ryeom/board-game/log"
@@ -23,36 +23,42 @@ import (
 // @Failure 500 {object} HttpResult "서버 오류"
 // @Router /board-game/api/user/profile [get]
 func GetUserProfile(c echo.Context) error {
-	// JWTMiddleware에서 설정한 userID 가져오기
+	lang := util.GetUserLanguage(c)
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("GetUserProfile - UserID not found in context")
-		return apperr.Unauthorized(apperr.ErrorCodeUserUnauthorized, nil)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserUnauthorized, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	u, err := user.FindUserByID(userID)
 	if err != nil {
 		log.Logger.Errorf("GetUserProfile - FindUserByID Error for ID %s: %v", userID, err)
-		return apperr.InternalServerError(apperr.ErrorCodeUserProfileFetchFailed, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserProfileFetchFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if u == nil {
-		return apperr.NotFound(apperr.ErrorCodeUserNotFound, nil)
+		return c.JSON(http.StatusOK, resp.Fail(resp.ErrorCodeUserNotFound, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	// 비밀번호와 같은 민감 정보는 제외하고 반환
-	responseData := map[string]interface{}{
+	data := map[string]interface{}{
 		"userId":       u.ID.String(),
 		"email":        u.Email,
 		"nickname":     u.Nickname,
-		"profileImage": u.ProfileImage, // nil일 수 있음
+		"profileImage": u.ProfileImage,
 		"role":         u.Role,
 		"isActive":     u.IsActive,
-		"lastLoginAt":  u.LastLoginAt, // nil일 수 있음
+		"lastLoginAt":  u.LastLoginAt,
 		"createdAt":    u.CreatedAt,
 		"updatedAt":    u.UpdatedAt,
 	}
 
-	return c.JSON(http.StatusOK, Success(responseData, "사용자 프로필 조회 성공"))
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserProfileGet, data, lang))
 }
 
 type UpdateProfileRequest struct {
@@ -75,29 +81,40 @@ type UpdateProfileRequest struct {
 // @Failure 500 {object} HttpResult "서버 오류"
 // @Router /board-game/api/user/profile [patch]
 func UpdateUserProfile(c echo.Context) error {
+	lang := util.GetUserLanguage(c)
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("UpdateUserProfile - UserID not found in context")
-		return apperr.Unauthorized(apperr.ErrorCodeUserUnauthorized, nil)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserUnauthorized, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	var req UpdateProfileRequest
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("UpdateUserProfile - Bind Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeRoomInvalidRequest, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserProfileInvalidRequest, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("UpdateUserProfile - Validation Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthValidation, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserProfileValidationFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	u, err := user.FindUserByID(userID)
 	if err != nil {
 		log.Logger.Errorf("UpdateUserProfile - FindUserByID Error for ID %s: %v", userID, err)
-		return apperr.InternalServerError(apperr.ErrorCodeUserProfileFetchFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeUserProfileFetchFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if u == nil {
-		return apperr.NotFound(apperr.ErrorCodeUserNotFound, nil)
+		return c.JSON(http.StatusNotFound, resp.Fail(resp.ErrorCodeUserNotFound, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	if req.Nickname != nil && *req.Nickname != u.Nickname {
@@ -114,10 +131,12 @@ func UpdateUserProfile(c echo.Context) error {
 	// 변경 사항 저장
 	if err := db.DB.Save(u).Error; err != nil {
 		log.Logger.Errorf("UpdateUserProfile - DB Save Error for ID %s: %v", userID, err)
-		return apperr.InternalServerError(apperr.ErrorCodeUserProfileUpdateFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeUserProfileUpdateFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	return c.JSON(http.StatusOK, Success(nil, "프로필이 성공적으로 업데이트되었습니다."))
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserSignUp, nil, lang))
 }
 
 type ChangePasswordRequest struct {
@@ -140,49 +159,66 @@ type ChangePasswordRequest struct {
 // @Failure 500 {object} HttpResult "서버 오류"
 // @Router /board-game/api/user/change-password [post]
 func ChangePassword(c echo.Context) error {
+	lang := util.GetUserLanguage(c)
 	userID, ok := c.Get("userID").(string)
 	if !ok || userID == "" {
 		log.Logger.Error("ChangePassword - UserID not found in context")
-		return apperr.Unauthorized(apperr.ErrorCodeUserUnauthorized, nil)
+		return c.JSON(http.StatusUnauthorized, resp.Fail(resp.ErrorCodeUserUnauthorized, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	var req ChangePasswordRequest
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("ChangePassword - Bind Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeRoomInvalidRequest, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserPasswordChangeFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("ChangePassword - Validation Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthValidation, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeUserChangePasswordValidationFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	u, err := user.FindUserByID(userID)
 	if err != nil {
 		log.Logger.Errorf("ChangePassword - FindUserByID Error for ID %s: %v", userID, err)
-		return apperr.InternalServerError(apperr.ErrorCodeUserProfileFetchFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeUserPasswordChangeFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if u == nil {
-		return apperr.NotFound(apperr.ErrorCodeUserNotFound, err)
+		return c.JSON(http.StatusNotFound, resp.Fail(resp.ErrorCodeUserChangePasswordNotFound, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	// 현재 비밀번호 검증
 	if !util.CheckPasswordHash(req.CurrentPassword, u.Password) {
-		return apperr.Unauthorized(apperr.ErrorCodeUserCurrentPasswordMismatch, nil)
+		return c.JSON(http.StatusForbidden, resp.Fail(resp.ErrorCodeUserCurrentPasswordMismatch, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	// 새 비밀번호 해싱
 	hashedNewPassword, err := util.HashPassword(req.NewPassword)
 	if err != nil {
 		log.Logger.Errorf("ChangePassword - Password Hashing Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthPasswordHashingFailed, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthPasswordHashingFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	// DB에 새 비밀번호 저장
 	u.Password = hashedNewPassword
 	if err := db.DB.Save(u).Error; err != nil {
 		log.Logger.Errorf("ChangePassword - DB Save Error for ID %s: %v", userID, err)
-		return apperr.InternalServerError(apperr.ErrorCodeUserPasswordChangeFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeUserPasswordChangeFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	return c.JSON(http.StatusOK, Success(nil, "비밀번호가 성공적으로 변경되었습니다."))
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserPasswordChange, nil, lang))
 }

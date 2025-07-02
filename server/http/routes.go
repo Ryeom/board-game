@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/Ryeom/board-game/internal/auth"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/server/ws"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -24,11 +25,6 @@ func InitializeRouter(e *echo.Echo) {
 		{
 			apiGroup.POST("/auth/logout", Logout)
 
-			apiGroup.GET("/rooms", GetRoomList)
-			apiGroup.POST("/rooms", CreateRoom)
-			apiGroup.PATCH("/rooms/:roomId", UpdateRoom)
-			apiGroup.DELETE("/rooms/:roomId", DeleteRoom)
-
 			apiGroup.GET("/user/profile", GetUserProfile)
 			apiGroup.PATCH("/user/profile", UpdateUserProfile)
 			apiGroup.POST("/user/change-password", ChangePassword)
@@ -46,8 +42,8 @@ func InitializeRouter(e *echo.Echo) {
 // @Success 200 {object} session.HttpResult
 // @Router /board-game/healthCheck [get]
 func healthCheck(c echo.Context) error {
-	result := HttpResult{
-		Code:    200,
+	result := resp.HttpResult{
+		Code:    "SUCCESS_HEALTH_CHECK",
 		Message: "OK",
 	}
 	var param struct {

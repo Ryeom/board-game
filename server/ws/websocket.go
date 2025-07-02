@@ -2,8 +2,9 @@ package ws
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	apperr "github.com/Ryeom/board-game/internal/errors"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
 	"github.com/gorilla/websocket"
@@ -44,12 +45,12 @@ func Websocket(c echo.Context) error {
 		return err // 초기 메시지 수신 실패 시 연결 종료
 	} else if err := json.Unmarshal(msg, &initData); err != nil {
 		fmt.Println(time.Now(), "❌ WebSocket Init Unmarshal Error:", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthInvalidRequest, err)
+		return errors.New(resp.ErrorCodeAuthInvalidRequest)
 	}
 
 	if initData.Type != "identify" {
 		fmt.Println(time.Now(), "❌ WebSocket Init - Expected 'identify' event, got:", initData.Type)
-		return apperr.BadRequest(apperr.ErrorCodeWSExpectedIdentify, nil)
+		return errors.New(resp.ErrorCodeWSExpectedIdentify)
 	}
 
 	connectedUser.Name = initData.Name
@@ -60,7 +61,7 @@ func Websocket(c echo.Context) error {
 
 	if err := user.SaveUserSession(connectedUser); err != nil {
 		log.Logger.Errorf("Websocket - Initial SaveUserSession error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeWSInitialSessionSaveFailed, err)
+		return errors.New(resp.ErrorCodeWSInitialSessionSaveFailed)
 	}
 
 	fmt.Printf(
@@ -79,7 +80,7 @@ func Websocket(c echo.Context) error {
 		var event SocketEvent
 		if err := json.Unmarshal(msg, &event); err != nil {
 			log.Logger.Warningf("WebSocket invalid message format from ID: %s, Error: %v, Message: %s", connectedUser.ID, err, string(msg))
-			sendError(connectedUser, apperr.BadRequest(apperr.ErrorCodeWSInvalidMessageFormat, err))
+			sendError(connectedUser, resp.ErrorCodeWSInvalidMessageFormat)
 			continue
 		}
 

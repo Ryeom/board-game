@@ -3,7 +3,7 @@ package http
 import (
 	"github.com/Ryeom/board-game/infra/db"
 	"github.com/Ryeom/board-game/internal/auth"
-	apperr "github.com/Ryeom/board-game/internal/errors"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
 	"github.com/Ryeom/board-game/log"
@@ -37,32 +37,43 @@ type LoginRequest struct {
 // @Router /board-game/auth/signup [post]
 func SignUp(c echo.Context) error {
 	var req SignupRequest
+	lang := util.GetUserLanguage(c)
 	if err := c.Bind(&req); err != nil {
 		log.Logger.Errorf("SignUp - Bind Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthBind, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthBind, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if err := c.Validate(&req); err != nil {
 		log.Logger.Errorf("SignUp - Validation Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthValidation, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthValidation, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	// 이메일 중복 확인
 	existingUser, err := user.FindUserByEmail(req.Email)
 	if err != nil {
 		log.Logger.Errorf("SignUp - FindUserByEmail Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthUserLookupFailed, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthUserLookupFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if existingUser != nil {
-		return apperr.Conflict(apperr.ErrorCodeAuthEmailDuplicate, nil)
+		return c.JSON(http.StatusNotFound, resp.Fail(resp.ErrorCodeAuthEmailDuplicate, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		log.Logger.Errorf("SignUp - Password Hashing Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthPasswordHashingFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeAuthPasswordHashingFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	u := user.User{
+	data := user.User{
 		Email:    req.Email,
 		Password: hashedPassword,
 		Nickname: req.Nickname,
@@ -70,12 +81,14 @@ func SignUp(c echo.Context) error {
 		IsActive: true,
 	}
 
-	if err := db.DB.Create(&u).Error; err != nil {
+	if err := db.DB.Create(&data).Error; err != nil {
 		log.Logger.Errorf("SignUp - DB Create User Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthCreateUserFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeAuthCreateUserFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	return c.JSON(http.StatusOK, Success(map[string]string{"message": "회원가입 성공"}, "회원가입이 성공적으로 완료되었습니다."))
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserSignUp, data, lang))
 }
 
 // Login은 사용자를 인증하고 JWT를 반환합니다.
@@ -91,41 +104,54 @@ func SignUp(c echo.Context) error {
 // @Failure 500 {object} HttpResult "서버 오류"
 // @Router /board-game/auth/login [post]
 func Login(c echo.Context) error {
+	lang := util.GetUserLanguage(c)
 	var payload LoginRequest
 	if err := c.Bind(&payload); err != nil {
 		log.Logger.Errorf("Login - Bind Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthBind, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthBind, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if err := c.Validate(&payload); err != nil {
 		log.Logger.Errorf("Login - Validation Error: %v", err)
-		return apperr.BadRequest(apperr.ErrorCodeAuthValidation, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthValidation, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	u, err := user.FindUserByEmail(payload.Email)
 	if err != nil {
 		log.Logger.Errorf("Login - FindUserByEmail Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthUserLookupFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeAuthUserLookupFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 	if u == nil || !util.CheckPasswordHash(payload.Password, u.Password) {
-		return apperr.Unauthorized(apperr.ErrorCodeAuthInvalidCredentials, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthInvalidCredentials, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	if err := user.UpdateLastLoginAt(db.DB, u.ID.String()); err != nil {
 		log.Logger.Errorf("Login - UpdateLastLoginAt Error: %v", err)
-		//return apperr.InternalServerError(apperr.ErrorCodeDbUpdateFailed, err)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthUpdateLastLoginAt, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	token, err := auth.GenerateJWT(u.ID.String())
 	if err != nil {
 		log.Logger.Errorf("Login - JWT Generation Error: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthJwtGenerationFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeAuthJwtGenerationFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	return c.JSON(http.StatusOK, Success(map[string]any{
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserLogin, map[string]any{
 		"token":    token,
 		"user_id":  u.ID.String(),
 		"nickname": u.Nickname,
-	}, "로그인이 성공적으로 완료되었습니다."))
+	}, lang))
 }
 
 // @Summary 로그아웃
@@ -141,9 +167,12 @@ func Login(c echo.Context) error {
 // @Router /board-game/api/auth/logout [post]
 func Logout(c echo.Context) error {
 	authHeader := c.Request().Header.Get("Authorization")
+	lang := util.GetUserLanguage(c)
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 		log.Logger.Error("Logout - Authorization header missing or malformed")
-		return apperr.BadRequest(apperr.ErrorCodeAuthInvalidToken, nil)
+		return c.JSON(http.StatusBadRequest, resp.Fail(resp.ErrorCodeAuthInvalidToken, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
@@ -151,8 +180,10 @@ func Logout(c echo.Context) error {
 	// 토큰을 블랙리스트에 추가
 	if err := auth.AddTokenToBlacklist(c.Request().Context(), tokenStr); err != nil {
 		log.Logger.Errorf("Logout - Failed to add token to blacklist: %v", err)
-		return apperr.InternalServerError(apperr.ErrorCodeAuthLogoutFailed, err)
+		return c.JSON(http.StatusInternalServerError, resp.Fail(resp.ErrorCodeAuthLogoutFailed, lang,
+			resp.ErrorDetail{},
+		))
 	}
 
-	return c.JSON(http.StatusOK, Success(nil, "성공적으로 로그아웃되었습니다."))
+	return c.JSON(http.StatusOK, resp.Success(resp.SuccessCodeUserLogout, nil, lang))
 }

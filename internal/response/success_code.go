@@ -11,6 +11,7 @@ const (
 	SuccessCodeUserPasswordChange = "SUCCESS_USER_PASSWORD_CHANGE"
 	SuccessCodeUserProfileFetch   = "SUCCESS_USER_PROFILE_FETCH"
 	SuccessCodeUserProfileUpdate  = "SUCCESS_USER_PROFILE_UPDATE"
+	SuccessCodeUserProfileGet     = "SUCCESS_USER_PROFILE_GET"
 
 	SuccessCodeRoomCreate    = "SUCCESS_ROOM_CREATE"
 	SuccessCodeRoomJoin      = "SUCCESS_ROOM_JOIN"

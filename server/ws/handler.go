@@ -2,9 +2,10 @@ package ws
 
 import (
 	"context"
-	ae "github.com/Ryeom/board-game/internal/errors"
+	"fmt"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
-	"github.com/Ryeom/board-game/log"
+	"net/http"
 )
 
 func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEvent) {
@@ -83,45 +84,52 @@ var systemEvents = map[string]ExecutionEvent{
 	"system.sync":   HandleSystemSync,   // 시스템 전체 상태 동기화
 }
 
-func sendResult(u *user.Session, eventType string, data interface{}, message string) {
-	// Conn이 nil인 경우 (예: Redis에서 로드된 세션) 메시지를 보낼 수 없음
+func sendResult(u *user.Session, eventType string, data interface{}, resultMsgCode string) {
 	if u.Conn == nil {
-		log.Logger.Errorf("Cannot send result to user %s: WebSocket connection is nil.", u.ID)
+		//log.Printf("Cannot send result to user %s: WebSocket connection is nil.", u.ID)
 		return
 	}
+
+	msgData, found := resp.GetDefineCode(resultMsgCode, "ko")
+	if !found {
+		msgData.Message = fmt.Sprintf("Unknown success code: %s", resultMsgCode)
+		msgData.HttpStatus = http.StatusOK
+		msgData.Action = "Please contact support."
+	}
+
 	res := WebSocketResult{
-		Type:    eventType,
-		Data:    data,
-		Message: message,
-		Success: true, // 성공 응답
+		Type:      eventType,
+		Data:      data,
+		Message:   msgData.Message,
+		Success:   true,
+		Code:      msgData.HttpStatus,
+		ErrorCode: resultMsgCode,
+		Action:    msgData.Action,
 	}
 	_ = u.Conn.WriteJSON(res)
 }
-
-func sendError(u *user.Session, appErr *ae.AppError) {
-	// Conn이 nil인 경우 메시지를 보낼 수 없음
+func sendError(u *user.Session, resultMsgCode string) {
 	if u.Conn == nil {
-		log.Logger.Errorf("Cannot send error to user %s: WebSocket connection is nil. Error: %v", u.ID, appErr)
 		return
 	}
+
+	msgData, found := resp.GetDefineCode(resultMsgCode, "ko")
+	actionMessage := ""
+	if found {
+		actionMessage = msgData.Action
+	}
+
 	res := WebSocketResult{
 		Type:      "error",
 		Data:      nil,
-		Message:   appErr.Message,
+		Message:   msgData.Message,
 		Success:   false,
-		Code:      appErr.Status,
-		ErrorCode: appErr.Code,
+		Code:      msgData.HttpStatus,
+		ErrorCode: resultMsgCode,
+		Action:    actionMessage,
 	}
 	_ = u.Conn.WriteJSON(res)
 
-	// 서버 로그에는 원본 에러와 함께 상세 정보를 남깁니다.
-	if appErr.Err != nil {
-		log.Logger.Errorf("[WS Error] UserID: %s, EventType: %s, Status: %d, Code: %s, Message: %s, OriginalError: %v",
-			u.ID, res.Type, appErr.Status, appErr.Code, appErr.Message, appErr.Err)
-	} else {
-		log.Logger.Debugf("[WS Error] UserID: %s, EventType: %s, Status: %d, Code: %s, Message: %s",
-			u.ID, res.Type, appErr.Status, appErr.Code, appErr.Message)
-	}
 }
 
 type WebSocketResult struct {
@@ -131,4 +139,5 @@ type WebSocketResult struct {
 	Success   bool        `json:"success"`             // 성공여부
 	Code      int         `json:"code,omitempty"`      // HTTP Status Code와 유사 (에러 시)
 	ErrorCode string      `json:"errorCode,omitempty"` // 내부 에러 코드 (에러 시)
+	Action    string      `json:"action,omitempty"`
 }

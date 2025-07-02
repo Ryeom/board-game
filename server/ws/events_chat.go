@@ -3,7 +3,7 @@ package ws
 import (
 	"context"
 	chat "github.com/Ryeom/board-game/internal/domain/chat"
-	apperr "github.com/Ryeom/board-game/internal/errors"
+	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
 	"time"
@@ -12,13 +12,13 @@ import (
 // HandleChatSend 채팅 메시지 전송
 func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
-		sendError(u, apperr.BadRequest(apperr.ErrorCodeChatNotInRoom, nil))
+		sendError(u, resp.ErrorCodeChatNotInRoom)
 		return
 	}
 
 	messageContent, ok := event.Data["message"].(string)
 	if !ok || messageContent == "" {
-		sendError(u, apperr.BadRequest(apperr.ErrorCodeChatEmptyMessage, nil))
+		sendError(u, resp.ErrorCodeChatEmptyMessage)
 		return
 	}
 
@@ -31,7 +31,7 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	if err := chat.SaveChatMessage(ctx, u.RoomID, &chatRecord); err != nil {
 		log.Logger.Errorf("HandleChatSend - Failed to save chat message via chat service for room %s: %v", u.RoomID, err)
-		sendError(u, apperr.InternalServerError(apperr.ErrorCodeChatSendFailed, err))
+		sendError(u, resp.ErrorCodeChatSendFailed)
 		return
 	}
 
@@ -46,14 +46,14 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 // HandleChatHistory 채팅 내역 조회
 func HandleChatHistory(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
-		sendError(u, apperr.BadRequest(apperr.ErrorCodeChatNotInRoom, nil))
+		sendError(u, resp.ErrorCodeChatNotInRoom)
 		return
 	}
 
 	chatRecords, err := chat.GetChatHistory(ctx, u.RoomID)
 	if err != nil {
 		log.Logger.Errorf("HandleChatHistory - Failed to retrieve chat history via chat service for room %s: %v", u.RoomID, err)
-		sendError(u, apperr.InternalServerError(apperr.ErrorCodeChatHistoryFetchFailed, err))
+		sendError(u, resp.ErrorCodeChatHistoryFetchFailed)
 		return
 	}
 
@@ -62,3 +62,5 @@ func HandleChatHistory(ctx context.Context, u *user.Session, event SocketEvent) 
 		"history": chatRecords,
 	}, "채팅 내역 조회 성공")
 }
+
+func HandleChatMute(ctx context.Context, u *user.Session, event SocketEvent) {}
