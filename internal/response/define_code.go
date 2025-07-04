@@ -1,11 +1,10 @@
 package response
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 )
 
@@ -35,40 +34,19 @@ func init() {
 	}
 }
 
-func LoadErrorMessages() error { // TODO
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %w", err)
-	}
-	jsonFilePath := filepath.Join(currentDir, "config", "errors.json")
+//go:embed code.json
+var errorMessagesFile []byte
 
-	if _, err := os.Stat(jsonFilePath); os.IsNotExist(err) {
-		jsonFilePath = filepath.Join(currentDir, "..", "..", "config", "errors.json")
-		if _, err := os.Stat(jsonFilePath); os.IsNotExist(err) {
-			return fmt.Errorf("error messages file not found at %s or %s", filepath.Join(currentDir, "config", "errors.json"), jsonFilePath)
-		}
-	}
-
-	file, err := os.Open(jsonFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open errors.json file at %s: %w", jsonFilePath, err)
-	}
-	defer file.Close()
-
-	byteValue, err := ioutil.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("failed to read errors.json file: %w", err)
-	}
-
+func LoadErrorMessages() error {
 	var loadedMessages map[string]CodeDefinition
-	if err := json.Unmarshal(byteValue, &loadedMessages); err != nil {
-		return fmt.Errorf("failed to unmarshal errors.json: %w", err)
+	if err := json.Unmarshal(errorMessagesFile, &loadedMessages); err != nil {
+		return fmt.Errorf("failed to unmarshal embedded errors.json: %w", err)
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
 	globalErrorMessages = loadedMessages
-	fmt.Println("Error messages reloaded successfully!")
+	fmt.Println("Error messages loaded successfully from embedded file!", globalErrorMessages)
 	return nil
 }
 

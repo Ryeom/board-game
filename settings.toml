@@ -14,3 +14,9 @@ dsn = "XSgJBR8yf5Pa-TdAO7tEOcZCCgY9iAuXzDGbTsjFDfuHJedX7eiwt_bLL0uv-OcYQUxaJY2RI
 
 [jwt]
 secret = "rqcCT7JzdcJaoet9e7U1p4TKCFasHPPB_8V-X27v1t_NtAPJO5yfFGMC6GWxLDSaASppl1WfjrAslGso"
+
+[mongo]
+user  =  "OzDqW0qfk4jOLWxL6xRNTW5CzRYC"
+port  =  "0k8Qro_tPq17Fl7tTQnUqUdzHTPW"
+ip  =  "R5EQtnWSwt02Yh1GdAowfUKAhAKFJoteNA=="
+pw  =  "RzDrgJ6exV7D_8CuI6QJUNK1kWHcXyVcKt4BHAaw"

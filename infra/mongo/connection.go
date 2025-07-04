@@ -26,6 +26,9 @@ func Initialize() {
 	pw := viper.GetString("mongo.pw")
 
 	Client = NewClient(ip, port, user, pw)
+	if Client == nil {
+		log.Logger.Fatalf("mongo client not initialized")
+	}
 }
 func NewClient(ip, port, user, pw string) *mongo.Client {
 	var mongoURI string
