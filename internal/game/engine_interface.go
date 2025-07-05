@@ -1,6 +1,6 @@
 package game
 
-type GameEngine interface {
+type Engine interface {
 	StartGame()
 	HandleEvent(event any) error
 }

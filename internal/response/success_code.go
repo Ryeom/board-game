@@ -24,4 +24,11 @@ const (
 
 	SuccessCodeChatSend         = "SUCCESS_CHAT_SEND"
 	SuccessCodeChatHistoryFetch = "SUCCESS_CHAT_HISTORY_FETCH"
+
+	SuccessCodeSystemErrorReceived = "SUCCESS_SYSTEM_ERROR_RECEIVED"
+
+	SuccessCodeGameStart  = "SUCCESS_GAME_START"
+	SuccessCodeGameEnd    = "SUCCESS_GAME_END"
+	SuccessCodeGameAction = "SUCCESS_GAME_ACTION"
+	SuccessCodeGameSync   = "SUCCESS_GAME_SYNC"
 )

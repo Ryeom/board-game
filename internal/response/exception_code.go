@@ -2,10 +2,8 @@ package response
 
 const (
 	ErrorCodeDefaultInternalServerError = "DEFAULT_INTERNAL_SERVER_ERROR"
-)
 
-// Authentication Error Codes
-const (
+	// Authentication Error Codes
 	ErrorCodeAuthBind                      = "ERROR_AUTH_BIND"
 	ErrorCodeAuthValidation                = "ERROR_AUTH_VALIDATION"
 	ErrorCodeAuthEmailDuplicate            = "ERROR_AUTH_EMAIL_DUPLICATE"
@@ -27,10 +25,8 @@ const (
 	ErrorCodeChatSendFailed                = "ERROR_CHAT_SEND_FAILED"
 	ErrorCodeChatHistoryFetchFailed        = "ERROR_CHAT_HISTORY_FAILURE"
 	ErrorCodeAuthUpdateLastLoginAt         = "ERROR_AUTH_UPDATE_LAST_LOGIN_at"
-)
 
-// User Error Codes
-const (
+	// User Error Codes
 	ErrorCodeUserUnauthorized                   = "ERROR_USER_UNAUTHORIZED"
 	ErrorCodeUserProfileFetchFailed             = "ERROR_USER_PROFILE_FETCH_FAILED"
 	ErrorCodeUserNotFound                       = "ERROR_USER_NOT_FOUND"
@@ -41,10 +37,8 @@ const (
 	ErrorCodeUserProfileInvalidRequest          = "ERROR_USER_PROFILE_INVALID_REQUEST"
 	ErrorCodeUserChangePasswordValidationFailed = "ERROR_USER_PASSWORD_CHANGE_VALIDATION_FAILED"
 	ErrorCodeUserChangePasswordNotFound         = "ERROR_USER_CHANGE_PASSWORD_NOT_FOUND"
-)
 
-// Room Error Codes
-const (
+	// Room Error Codes
 	ErrorCodeRoomInvalidRequest        = "ERROR_ROOM_INVALID_REQUEST"
 	ErrorCodeRoomNotFound              = "ERROR_ROOM_NOT_FOUND"
 	ErrorCodeRoomUnsupportedGameMode   = "ERROR_ROOM_UNSUPPORTED_GAME_MODE"
@@ -63,8 +57,17 @@ const (
 	ErrorCodeRoomKickFailed            = "ERROR_ROOM_KICK_FAILED"
 	ErrorCodeUserNoUpdates             = "ERROR_USER_NO_UPDATES"
 	ErrorCodeUserInvalidRequest        = "ERROR_USER_INVALID_REQUEST"
-)
+	ErrorCodeChatMuteFailed            = "ERROR_CHAT_MUTE_FAILED"
 
-const (
 	ErrorCodeWSUnknownEvent = "ERROR_WS_UNKNOWN_EVENT"
+
+	ErrorCodeGameAlreadyStarted          = "ERROR_GAME_ALREADY_STARTED"
+	ErrorCodeGameNotEnoughPlayers        = "ERROR_GAME_NOT_ENOUGH_PLAYERS"
+	ErrorCodeGameTooManyPlayers          = "ERROR_GAME_TOO_MANY_PLAYERS"
+	ErrorCodeGameNotStarted              = "ERROR_GAME_NOT_STARTED"
+	ErrorCodeGameActionFailed            = "ERROR_GAME_ACTION_FAILED"
+	ErrorCodeGameSyncFailed              = "ERROR_GAME_SYNC_FAILED"
+	ErrorCodeGameFeatureNotImplemented   = "ERROR_GAME_FEATURE_NOT_IMPLEMENTED"
+	ErrorCodeSystemFeatureNotImplemented = "ERROR_SYSTEM_FEATURE_NOT_IMPLEMENTED" // (기존 events.go에서 사용됨)
+
 )
