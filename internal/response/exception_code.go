@@ -2,6 +2,10 @@ package response
 
 const (
 	ErrorCodeDefaultInternalServerError = "DEFAULT_INTERNAL_SERVER_ERROR"
+	ErrorCodeDefaultBadRequest          = "DEFAULT_BAD_REQUEST"
+	ErrorCodeDefaultUnauthorized        = "DEFAULT_UNAUTHORIZED"
+	ErrorCodeDefaultNotFound            = "DEFAULT_NOT_FOUND"
+	ErrorCodeDefaultForbidden           = "DEFAULT_FORBIDDEN"
 
 	// Authentication Error Codes
 	ErrorCodeAuthBind                      = "ERROR_AUTH_BIND"
@@ -68,6 +72,5 @@ const (
 	ErrorCodeGameActionFailed            = "ERROR_GAME_ACTION_FAILED"
 	ErrorCodeGameSyncFailed              = "ERROR_GAME_SYNC_FAILED"
 	ErrorCodeGameFeatureNotImplemented   = "ERROR_GAME_FEATURE_NOT_IMPLEMENTED"
-	ErrorCodeSystemFeatureNotImplemented = "ERROR_SYSTEM_FEATURE_NOT_IMPLEMENTED" // (기존 events.go에서 사용됨)
-
+	ErrorCodeSystemFeatureNotImplemented = "ERROR_SYSTEM_FEATURE_NOT_IMPLEMENTED"
 )
