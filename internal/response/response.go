@@ -17,6 +17,7 @@ type HttpError struct {
 	TraceID          string        `json:"traceId,omitempty"`          // 문제 추적용 ID
 	Severity         string        `json:"severity,omitempty"`
 	Action           string        `json:"action,omitempty"`
+	HttpStatusCode   int           `json:"httpStatusCode,omitempty"`
 }
 type HttpResult struct {
 	Message string      `json:"message"`        // 클라이언트에게 보여줄 메시지

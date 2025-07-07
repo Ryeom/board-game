@@ -12,6 +12,7 @@ const (
 	RedisTargetRoom   = "room"
 	RedisTargetUser   = "user"
 	RedisTargetPubSub = "pubSub"
+	RedisTargetGame   = "game"
 )
 
 var Client map[string]*redis.Client
@@ -36,6 +37,12 @@ func Initialize() {
 		panic(err)
 	}
 	Client[RedisTargetPubSub] = pubSubClient
+	gameClient, err := CreateClient(viper.GetInt("redis.game-index"))
+	if err != nil {
+		log.Logger.Fatal(err)
+		panic(err)
+	}
+	Client[RedisTargetGame] = gameClient
 }
 func CreateClient(db int) (*redis.Client, error) {
 	addr := viper.GetString("redis.addr")

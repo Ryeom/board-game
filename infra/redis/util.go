@@ -268,22 +268,24 @@ func Delete(target string, key string) error {
 	return nil
 }
 
-func SaveJSON(target string, key string, value interface{}, ttl time.Duration) {
+func SaveJSON(target string, key string, value interface{}, ttl time.Duration) error {
 	rdb := Client[target] //
 	if rdb == nil {
 		log.Logger.Errorf("SaveJSON - Redis client not found for target: %s", target) // 에러 로깅 추가
-		return
+		return errors.New(fmt.Sprintf("redis client not found for target: %s", target))
 	}
 	ctx := context.Background()
 	data, err := json.Marshal(value)
 	if err != nil {
 		log.Logger.Errorf("JSON Marshal ERROR: %v", err)
-		return
+		return err
 	}
 	err = rdb.Set(ctx, key, data, ttl).Err()
 	if err != nil {
 		log.Logger.Errorf("Redis Set ERROR: %v", err)
+		return err
 	}
+	return nil
 }
 
 func GetJSON(target string, key string, dest interface{}) bool {

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// HandleChatSend 채팅 메시지 전송
+// HandleChatSend 채팅 전송
 func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
 		sendError(u, resp.ErrorCodeChatNotInRoom)
@@ -40,7 +40,7 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 		"data": chatRecord,
 	})
 
-	sendResult(u, event.Type, map[string]string{"status": "sent"}, "메시지 전송 성공")
+	sendResult(u, event.Type, map[string]string{"status": "sent"}, resp.SuccessCodeChatSend)
 }
 
 // HandleChatHistory 채팅 내역 조회
@@ -60,7 +60,10 @@ func HandleChatHistory(ctx context.Context, u *user.Session, event SocketEvent) 
 	sendResult(u, event.Type, map[string]any{
 		"roomId":  u.RoomID,
 		"history": chatRecords,
-	}, "채팅 내역 조회 성공")
+	}, resp.SuccessCodeChatHistoryFetch)
 }
 
-func HandleChatMute(ctx context.Context, u *user.Session, event SocketEvent) {}
+// HandleChatMute 유저 채팅 제한
+func HandleChatMute(ctx context.Context, u *user.Session, event SocketEvent) {
+	sendError(u, resp.ErrorCodeChatMuteFailed)
+}
