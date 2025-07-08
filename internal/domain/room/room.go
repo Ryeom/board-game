@@ -16,14 +16,15 @@ const (
 )
 
 type Room struct {
-	ID         string    `json:"id"`
-	RoomName   string    `json:"roomName"`
-	Host       string    `json:"host"` // 방장
-	Players    []string  `json:"players"`
-	Password   string    `json:"-"`
-	MaxPlayers int       `json:"maxPlayers"`
-	GameMode   GameMode  `json:"gameMode"`
-	CreatedAt  time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	RoomName      string    `json:"roomName"`
+	Host          string    `json:"host"` // 방장
+	Players       []string  `json:"players"`
+	Password      string    `json:"-"`
+	MaxPlayers    int       `json:"maxPlayers"`
+	GameMode      GameMode  `json:"gameMode"`
+	IsGameStarted bool      `json:"isGameStarted"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 func CreateRoom(ctx context.Context, roomID string, hostID string, roomName string, password string, maxPlayers int) (*Room, error) { // 인자 추가
@@ -40,14 +41,15 @@ func CreateRoom(ctx context.Context, roomID string, hostID string, roomName stri
 		maxPlayers = 2
 	}
 	r := &Room{
-		ID:         roomID,
-		RoomName:   roomName,
-		Host:       hostID,
-		Players:    []string{hostID},
-		Password:   hashedPassword,
-		MaxPlayers: maxPlayers,
-		GameMode:   GameModeHanabi,
-		CreatedAt:  time.Now(),
+		ID:            roomID,
+		RoomName:      roomName,
+		Host:          hostID,
+		Players:       []string{hostID},
+		Password:      hashedPassword,
+		MaxPlayers:    maxPlayers,
+		GameMode:      GameModeHanabi,
+		IsGameStarted: false, // 초기에는 게임이 시작되지 않은 상태
+		CreatedAt:     time.Now(),
 	}
 	if err := r.Save(); err != nil {
 		return nil, err
@@ -97,6 +99,10 @@ func (r *Room) Join(ctx context.Context, userID string, password string) (bool, 
 	// 1. 방 참여 인원 제한 확인
 	if len(r.Players) >= r.MaxPlayers {
 		return false, errors.New(resp.ErrorCodeRoomFull)
+	}
+
+	if r.IsGameStarted {
+		return false, errors.New(resp.ErrorCodeGameAlreadyStarted)
 	}
 
 	// 2. 비밀번호가 설정된 방인 경우, 비밀번호 검증

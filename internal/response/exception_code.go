@@ -65,12 +65,18 @@ const (
 
 	ErrorCodeWSUnknownEvent = "ERROR_WS_UNKNOWN_EVENT"
 
-	ErrorCodeGameAlreadyStarted          = "ERROR_GAME_ALREADY_STARTED"
-	ErrorCodeGameNotEnoughPlayers        = "ERROR_GAME_NOT_ENOUGH_PLAYERS"
-	ErrorCodeGameTooManyPlayers          = "ERROR_GAME_TOO_MANY_PLAYERS"
-	ErrorCodeGameNotStarted              = "ERROR_GAME_NOT_STARTED"
-	ErrorCodeGameActionFailed            = "ERROR_GAME_ACTION_FAILED"
-	ErrorCodeGameSyncFailed              = "ERROR_GAME_SYNC_FAILED"
-	ErrorCodeGameFeatureNotImplemented   = "ERROR_GAME_FEATURE_NOT_IMPLEMENTED"
+	ErrorCodeGameAlreadyStarted        = "ERROR_GAME_ALREADY_STARTED"
+	ErrorCodeGameNotEnoughPlayers      = "ERROR_GAME_NOT_ENOUGH_PLAYERS"
+	ErrorCodeGameTooManyPlayers        = "ERROR_GAME_TOO_MANY_PLAYERS"
+	ErrorCodeGameNotStarted            = "ERROR_GAME_NOT_STARTED"
+	ErrorCodeGameActionFailed          = "ERROR_GAME_ACTION_FAILED"
+	ErrorCodeGameSyncFailed            = "ERROR_GAME_SYNC_FAILED"
+	ErrorCodeGameFeatureNotImplemented = "ERROR_GAME_FEATURE_NOT_IMPLEMENTED"
+	ErrorCodeGameAllUserNotReady       = "ERROR_GAME_ALL_USER_NOT_READY"
+	ErrorCodeGamePlayerNotInRoom       = "ERROR_GAME_PLAYER_NOT_IN_ROOM"
+	ErrorCodeGameNotAllPlayersReady    = "ERROR_GAME_NOT_ALL_PLAYERS_READY"
+	ErrorCodeGameInfoNotSaved          = "ERROR_GAME_INFO_NOT_SAVED"
+	ErrorCodeGameStateNotDeleted       = "ERROR_GAME_STATE_NOT_DELETED"
+
 	ErrorCodeSystemFeatureNotImplemented = "ERROR_SYSTEM_FEATURE_NOT_IMPLEMENTED"
 )
