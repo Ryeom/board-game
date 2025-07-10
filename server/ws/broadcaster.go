@@ -14,13 +14,15 @@ import (
 
 type Broadcaster interface {
 	BroadcastToRoom(roomID string, payload any) error
+	SetSessionGetter(getter func(socketID string) (*user.Session, bool))
 }
 
 var GlobalBroadcaster Broadcaster
 
 type RedisBroadcaster struct {
-	pubsub *redis.PubSub
-	ctx    context.Context
+	pubsub        *redis.PubSub
+	ctx           context.Context
+	sessionGetter func(socketID string) (*user.Session, bool)
 }
 
 func NewRedisBroadcaster(ctx context.Context) *RedisBroadcaster {
@@ -38,12 +40,11 @@ func NewRedisBroadcaster(ctx context.Context) *RedisBroadcaster {
 	go rb.listen()
 	return rb
 }
-func BroadcastToRoom() {
 
+func (rb *RedisBroadcaster) SetSessionGetter(getter func(socketID string) (*user.Session, bool)) {
+	rb.sessionGetter = getter
 }
-func BroadcastToAllUser() {
 
-}
 func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload any) error {
 	msg := map[string]any{
 		"roomId": roomID,
@@ -68,15 +69,26 @@ func (rb *RedisBroadcaster) listen() {
 			continue
 		}
 
-		sessions, err := user.GetSessionsByRoom(parsed.RoomID)
+		sessionIDsInRoom, err := redisutil.GetSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(parsed.RoomID))
 		if err != nil {
-			log.Println("❌ Redis 세션 조회 실패:", err)
+			log.Println("❌ Redis 세션 ID 조회 실패:", err)
 			continue
 		}
 
-		for _, s := range sessions {
-			if s.Conn != nil {
-				s.Conn.WriteJSON(parsed.Data)
+		for _, sID := range sessionIDsInRoom {
+			if rb.sessionGetter == nil {
+				log.Println("❌ Broadcaster session getter not set. Cannot broadcast to live sessions.")
+				continue
+			}
+			liveSession, found := rb.sessionGetter(sID)
+			if found && liveSession.Conn != nil {
+				err := liveSession.Conn.WriteJSON(parsed.Data)
+				if err != nil {
+					log.Println("❌ Failed to write JSON to WebSocket for session", sID, ":", err)
+				}
+			} else {
+				log.Printf("Session %s not found in active connections or connection is nil. Room: %s. Cleaning up stale Redis entry.", sID, parsed.RoomID)
+				_ = redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(parsed.RoomID), sID)
 			}
 		}
 	}

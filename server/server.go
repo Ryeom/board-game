@@ -8,6 +8,7 @@ import (
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/auth"
 	resp "github.com/Ryeom/board-game/internal/response"
+	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
 	l "github.com/Ryeom/board-game/log"
 	appHttp "github.com/Ryeom/board-game/server/http"
@@ -36,7 +37,19 @@ func Initialize(e *echo.Echo) {
 	mongo.Initialize()
 
 	ctx := context.Background()
-	ws.GlobalBroadcaster = ws.NewRedisBroadcaster(ctx)
+
+	// Initialize broadcaster
+	broadcaster := ws.NewRedisBroadcaster(ctx)
+	ws.GlobalBroadcaster = broadcaster
+
+	broadcaster.SetSessionGetter(func(socketID string) (*user.Session, bool) {
+		val, ok := ws.ActiveSessions().Load(socketID)
+		if !ok {
+			return nil, false
+		}
+		session, typeOk := val.(*user.Session)
+		return session, typeOk
+	})
 
 }
 func httpErrorHandler(e *echo.Echo) func(err error, c echo.Context) {
@@ -48,7 +61,6 @@ func httpErrorHandler(e *echo.Echo) func(err error, c echo.Context) {
 		httpErr, ok := err.(*echo.HTTPError)
 		if ok {
 			statusCode = httpErr.Code
-			//message := fmt.Sprint(httpErr.Message)
 
 			switch statusCode {
 			case http.StatusBadRequest:

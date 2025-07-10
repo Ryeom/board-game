@@ -3,6 +3,7 @@ package test
 
 import (
 	"encoding/json"
+	"log"
 	"testing"
 	"time"
 
@@ -30,8 +31,12 @@ func SendEvent(t *testing.T, conn *websocket.Conn, event WSEvent) {
 }
 
 func ReadEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration) WSEvent {
-	conn.SetReadDeadline(time.Now().Add(timeout))
+	err := conn.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		log.Println("Failed to set read deadline")
+	}
 	_, msg, err := conn.ReadMessage()
+
 	assert.NoError(t, err, "Failed to read message")
 
 	var event WSEvent
@@ -42,7 +47,7 @@ func ReadEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration) WSEven
 
 func IdentifyUser(t *testing.T, conn *websocket.Conn, userID, userName string) {
 	event := WSEvent{
-		Type: "identify",
+		Type: "user.identify",
 		Data: map[string]interface{}{
 			"userId":   userID,
 			"userName": userName,
@@ -53,7 +58,7 @@ func IdentifyUser(t *testing.T, conn *websocket.Conn, userID, userName string) {
 
 func ConnectAndIdentify(t *testing.T, wsURL, userID, userName string) *websocket.Conn {
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(wsURL+"?id="+userID+"&name="+userName, nil) // id, name 쿼리 파라미터는 websocket.go에서 사용하지 않으므로 제거하거나 유의
+	conn, _, err := dialer.Dial(wsURL+"?id="+userID+"&name="+userName, nil)
 	assert.NoError(t, err)
 
 	IdentifyUser(t, conn, userID, userName)

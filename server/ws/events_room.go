@@ -20,10 +20,10 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
-	password, _ := event.Data["password"].(string)            // 비밀번호는 선택적
-	maxPlayersFloat, ok := event.Data["maxPlayers"].(float64) // JSON 숫자는 float64로 파싱될 수 있음
+	password, _ := event.Data["password"].(string)
+	maxPlayersFloat, ok := event.Data["maxPlayers"].(float64)
 	maxPlayers := int(maxPlayersFloat)
-	if !ok || maxPlayers < 2 || maxPlayers > 6 { // 예시: 최소 2, 최대 6명으로 제한
+	if !ok || maxPlayers < 2 || maxPlayers > 6 {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
@@ -32,14 +32,14 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 	roomID := "room:" + u.ID + ":" + fmt.Sprint(time.Now().UnixNano())
 	r, err := room.CreateRoom(ctx, roomID, u.ID, roomName, password, maxPlayers)
 	if err != nil {
+		log.Logger.Errorf("HandleRoomCreate - Failed to create room: %v", err)
 		sendError(u, resp.ErrorCodeRoomCreationFailed)
-
 		return
 	}
 
 	// 3. 방 생성 시 방장은 자동으로 방에 참여하므로, Redis Set에 추가
 	if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
-		log.Logger.Errorf("HandleRoomCreate - Failed to add host to room sessions set: %v", err)
+		log.Logger.Errorf("HandleRoomCreate - Failed to add host %s to room sessions set %s: %v", u.ID, user.RoomIndexKey(r.ID), err) // 로그 추가
 		sendError(u, resp.ErrorCodeRoomCreationFailed)
 		return
 	}
@@ -47,8 +47,7 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 	// 4. 세션의 RoomID 업데이트 및 저장 (선택 사항: HandleUserIdentify에서 처리하면 여기서는 안해도 됨)
 	u.RoomID = r.ID
 	if err := user.SaveUserSession(u); err != nil {
-		log.Logger.Errorf("HandleRoomCreate - Failed to save user session with new room ID %s: %v", u.RoomID, err)
-		// 이 에러는 방 생성 실패로 간주하지 않고 로깅만
+		log.Logger.Errorf("HandleRoomCreate - Failed to save user session %s with new room ID %s: %v", u.RoomID, err)
 	}
 
 	// 5. 방 목록 갱신 및 응답
@@ -59,41 +58,51 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 		"max_players": r.MaxPlayers,
 		"room_list":   rooms,
 	}, resp.SuccessCodeRoomCreate)
+	log.Logger.Debugf("HandleRoomCreate - Room %s created successfully by user %s (ActualUserID: %s)", r.ID, u.Name, u.ActualUserID) // 로그 추가
 }
 
 // HandleRoomJoin 방에 참여하기
 func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
+	log.Logger.Debugf("HandleRoomJoin - User %s (ActualUserID: %s) attempting to join room. Event: %+v", u.Name, u.ActualUserID, event) // Debug log
+
 	// 1. 요청 데이터 파싱
 	roomID, ok := event.Data["roomId"].(string)
 	if !ok || roomID == "" {
+		log.Logger.Debugf("HandleRoomJoin - Invalid room ID in request from user %s", u.Name)
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
-	password, _ := event.Data["password"].(string) // 방 비밀번호 (선택적)
+	password, _ := event.Data["password"].(string) // 선택사항
 
 	// 2. 방 존재 여부 확인
 	r, ok := room.GetRoom(ctx, roomID)
 	if !ok {
+		log.Logger.Debugf("HandleRoomJoin - Room %s not found for user %s", roomID, u.Name)
 		sendError(u, resp.ErrorCodeRoomNotFound)
 		return
 	}
 
+	log.Logger.Debugf("HandleRoomJoin - Room %s fetched. Current players: %d, Max players: %d, IsGameStarted: %t, HasPassword: %t",
+		r.ID, len(r.Players), r.MaxPlayers, r.IsGameStarted, r.Password != "")
+
 	// 3. 방 참여 로직 (비밀번호 검증 및 인원 제한 포함)
 	joined, err := r.Join(ctx, u.ID, password)
 	if err != nil {
-		sendError(u, err.Error())
+		log.Logger.Errorf("HandleRoomJoin - User %s (socketId: %s) failed to join room %s. Error from r.Join: %v", u.Name, u.ID, r.ID, err) // Log exact error from r.Join
+		sendError(u, err.Error())                                                                                                           // err.Error() will return the error string (e.g., "ERROR_ROOM_FULL")
 		return
 	}
-	if !joined { // 이미 참여한 경우
+	if !joined { // 이미 참여
+		log.Logger.Debugf("HandleRoomJoin - User %s (socketId: %s) already joined room %s", u.Name, u.ID, r.ID) // Debug log
 		sendError(u, resp.ErrorCodeRoomAlreadyJoined)
 		return
 	}
 
 	// 4. 세션의 RoomID 업데이트 및 저장
-	oldRoomID := u.RoomID // 기존 방 ID 저장
+	oldRoomID := u.RoomID
 	u.RoomID = r.ID
 	if err := user.SaveUserSession(u); err != nil {
-		log.Logger.Errorf("HandleRoomJoin - Failed to save user session %s with new room ID %s: %v", u.ID, u.RoomID, err)
+		log.Logger.Errorf("HandleRoomJoin - Failed to save user session %s (socketId: %s) with new room ID %s: %v", u.Name, u.ID, u.RoomID, err)
 		sendError(u, resp.ErrorCodeRoomJoinFailed)
 		return
 	}
@@ -101,16 +110,18 @@ func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 	// 5. 이전 방이 있었다면 해당 방의 Redis Set에서 사용자 ID 제거
 	if oldRoomID != "" && oldRoomID != r.ID {
 		if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(oldRoomID), u.ID); err != nil {
-			log.Logger.Warningf("HandleRoomJoin - Failed to remove user %s from old room %s sessions set: %v", u.ID, oldRoomID, err)
+			log.Logger.Warningf("HandleRoomJoin - Failed to remove user %s (socketId: %s) from old room %s sessions set: %v", u.Name, u.ID, oldRoomID, err)
 		}
 	}
 
 	// 6. 새 방의 Redis Set에 사용자 ID 추가
 	if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
-		log.Logger.Errorf("HandleRoomJoin - Failed to add user %s to room %s sessions set: %v", u.ID, r.ID, err)
+		log.Logger.Errorf("HandleRoomJoin - Failed to add user %s (socketId: %s) to room %s sessions set: %v", u.Name, u.ID, r.ID, err)
 		sendError(u, resp.ErrorCodeRoomJoinFailed)
 		return
 	}
+
+	log.Logger.Debugf("HandleRoomJoin - User %s (ActualUserID: %s) successfully joined room %s. Room now has %d players.", u.Name, u.ActualUserID, r.ID, len(r.Players)) // Success log
 
 	// 7. 클라이언트 응답 및 브로드캐스트
 	sendResult(u, event.Type, r, resp.SuccessCodeRoomJoin)
@@ -132,21 +143,17 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	r, ok := room.GetRoom(ctx, u.RoomID)
 	if !ok {
-		// 방이 이미 사라졌을 수 있으므로 경고 로그만 남기고 세션 정리
 		log.Logger.Warningf("HandleRoomLeave - Room %s not found for user %s trying to leave. Cleaning up session.", u.RoomID, u.ID)
-		u.RoomID = ""               // 세션에서 방 ID 제거
-		_ = user.SaveUserSession(u) // 세션 저장
+		u.RoomID = ""
+		_ = user.SaveUserSession(u)
 		sendError(u, resp.ErrorCodeRoomNotFound)
 		return
 	}
 
-	// Redis Set에서 플레이어 제거
 	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID), u.ID); err != nil {
 		log.Logger.Errorf("HandleRoomLeave - Failed to remove user %s from room %s sessions set: %v", u.ID, r.ID, err)
-		// 에러 처리: 이 경우에도 방을 나가게는 해야 함
 	}
 
-	// 플레이어 목록에서 제거
 	originalPlayers := r.Players
 	newPlayers := make([]string, 0, len(originalPlayers))
 	isHostLeaving := false
@@ -185,15 +192,14 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 	u.RoomID = ""
 	if err := user.SaveUserSession(u); err != nil {
 		log.Logger.Errorf("HandleRoomLeave - Failed to save user session %s after leaving room: %v", u.ID, err)
-		// 이 에러는 클라이언트에게 알리지 않고 로깅만 (성공적으로 방을 나갔으므로)
 	}
 
 	// 본인에게 알림
 	sendResult(u, event.Type, map[string]any{
 		"type":    "room_left",
 		"roomId":  r.ID,
-		"newHost": r.Host, // 새 방장 정보도 함께 전달
-	}, resp.SuccessCodeRoomLeave) // 성공 메시지도 GetErrorMessage로 관리한다면
+		"newHost": r.Host,
+	}, resp.SuccessCodeRoomLeave)
 
 	// 나머지 인원에게 알림 (방이 삭제되지 않은 경우에만)
 	if len(r.Players) > 0 {
@@ -202,7 +208,7 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 			"data": map[string]string{
 				"userId":   u.ID,
 				"userName": u.Name,
-				"newHost":  r.Host, // 새 방장 정보도 함께 전달
+				"newHost":  r.Host,
 			},
 		})
 	}
@@ -212,7 +218,6 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 func HandleRoomList(ctx context.Context, u *user.Session, event SocketEvent) {
 	rooms := room.ListRooms(ctx)
 
-	// Room 객체에서 비밀번호 필드를 제거한 DTO 생성 (클라이언트에 비밀번호 정보 노출 방지)
 	type roomSummary struct {
 		ID          string    `json:"id"`
 		RoomName    string    `json:"roomName"`
@@ -233,7 +238,7 @@ func HandleRoomList(ctx context.Context, u *user.Session, event SocketEvent) {
 			PlayerNum:   len(r.Players),
 			MaxPlayers:  r.MaxPlayers,
 			GameMode:    string(r.GameMode),
-			HasPassword: r.Password != "", // 비밀번호 필드가 비어있지 않으면 true
+			HasPassword: r.Password != "",
 			CreatedAt:   r.CreatedAt,
 		})
 	}
@@ -241,7 +246,7 @@ func HandleRoomList(ctx context.Context, u *user.Session, event SocketEvent) {
 	sendResult(u, event.Type, map[string]any{
 		"type": "room.list",
 		"data": summaryList,
-	}, resp.SuccessCodeRoomListFetch) // 성공 메시지도 GetErrorMessage로 관리한다면
+	}, resp.SuccessCodeRoomListFetch)
 }
 
 // HandleRoomUpdate 방 설정 변경
@@ -305,7 +310,6 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 	if maxPlayersRaw, exists := event.Data["maxPlayers"]; exists {
 		if maxPlayersFloat, ok := maxPlayersRaw.(float64); ok {
 			maxPlayers := int(maxPlayersFloat)
-			// 유효성 검사: 최소 인원, 현재 플레이어 수보다 낮아지지 않도록
 			if maxPlayers < 2 { // 최소 인원 제한
 				sendError(u, resp.ErrorCodeRoomInvalidRequest)
 				return
@@ -337,10 +341,9 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	// 클라이언트 응답 및 브로드캐스트
 	sendResult(u, event.Type, r, resp.SuccessCodeRoomUpdate)
 	GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
-		"type": "room_updated",
+		"type": "room.update",
 		"data": r,
 	})
 }
@@ -384,7 +387,7 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 		}
 		newPlayers = append(newPlayers, pid)
 	}
-	if !kicked { // 이 조건은 사실상 위 targetSession.RoomID 검사로도 충분할 수 있음 (선택적)
+	if !kicked {
 		sendError(u, resp.ErrorCodeRoomUserNotInRoom)
 		return
 	}
@@ -436,7 +439,7 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 		"data": map[string]string{
 			"userId":   targetID,
 			"userName": targetSession.Name,
-			"newHost":  r.Host, // 새 방장 정보도 함께 전달
+			"newHost":  r.Host,
 		},
 	})
 }

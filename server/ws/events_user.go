@@ -2,38 +2,53 @@ package ws
 
 import (
 	"context"
+	"fmt"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/domain/room"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	log "github.com/Ryeom/board-game/log"
+	"time"
 )
 
 // HandleUserIdentify 유저 초기 식별
 func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent) {
 	data := event.Data
-	userID, ok1 := data["userId"].(string)
+	requestedUserID, ok1 := data["userId"].(string)
 	userName, ok2 := data["userName"].(string)
 
-	if !ok1 || !ok2 || userID == "" || userName == "" {
+	if !ok1 || !ok2 || requestedUserID == "" || userName == "" {
 		sendError(u, resp.ErrorCodeAuthInvalidRequest)
 		return
 	}
 
-	u.ID = userID
-	u.Name = userName
+	oldSessionID := u.ID
 
-	// 유저 정보 Redis에 캐싱
-	// SaveUserSession은 ctx를 받지 않으므로, 직접 호출
+	u.ID = requestedUserID
+	u.Name = userName
+	u.Status = "connected"
+
+	if oldSessionID != requestedUserID {
+		ActiveSessions().Delete(oldSessionID)
+		ActiveSessions().Store(u.ID, u)
+	} else {
+		ActiveSessions().Store(u.ID, u)
+	}
+
 	if err := user.SaveUserSession(u); err != nil {
 		log.Logger.Errorf("HandleUserIdentify - Failed to save user session %s after identify: %v", u.ID, err)
 		sendError(u, resp.ErrorCodeWSInitialSessionSaveFailed)
 		return
 	}
 
+	fmt.Printf(
+		"[Identified] ID: %s | Name: %s | IP: %s | Time: %s\n",
+		u.ID, u.Name, u.IP, u.ConnectedAt.Format(time.RFC3339),
+	)
+
 	sendResult(u, "user.identify", map[string]string{
-		"userId":   userID,
-		"userName": userName,
+		"userId":   u.ID,
+		"userName": u.Name,
 	}, resp.SuccessCodeUserIdentify)
 }
 
@@ -55,7 +70,7 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, resp.ErrorCodeUserNoUpdates)
 		return
 	}
-	// 세션 정보 업데이트 (Redis)
+
 	if err := user.SaveUserSession(u); err != nil {
 		log.Logger.Errorf("HandleUserUpdate - Failed to save user session %s after update: %v", u.ID, err)
 		sendError(u, resp.ErrorCodeUserProfileUpdateFailed)
@@ -67,15 +82,20 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 
 // HandleUserDisconnect 유저 연결 종료
 func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEvent) {
+	// Remove from activeSessions map first
+	ActiveSessions().Delete(u.ID)
+
 	roomID := u.RoomID
-	if roomID == "" { // 방에 속해있지 않으면 Redis Set에서 제거할 필요 없음
+	if roomID == "" {
 		if err := user.DeleteUserSession(u.ID); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (no room): %v", u.ID, err)
+		}
+		if u.Conn != nil {
+			_ = u.Conn.Close()
 		}
 		return
 	}
 
-	// 방에 속해 있었다면 해당 방의 Set에서 제거
 	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(roomID), u.ID); err != nil {
 		log.Logger.Errorf("HandleUserDisconnect - Failed to remove user %s from room %s sessions set: %v", u.ID, roomID, err)
 		// 에러 처리
@@ -83,11 +103,14 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 
 	r, ok := room.GetRoom(ctx, roomID)
 	if !ok {
-		log.Logger.Warningf("HandleUserDisconnect - Room %s not found for disconnected user %s. Cleaning up session.", roomID, u.ID)
+		log.Logger.Warningf("HandleUserDisconnect - Room %s not found for user %s trying to leave. Cleaning up session.", u.RoomID, u.ID)
 		if err := user.DeleteUserSession(u.ID); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (room not found case): %v", u.ID, err)
 		}
-		return // 방이 이미 사라졌다면 더 이상 방 관련 업데이트 불필요
+		if u.Conn != nil {
+			_ = u.Conn.Close()
+		}
+		return
 	}
 
 	updatedPlayers := make([]string, 0, len(r.Players))
@@ -98,7 +121,7 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 	}
 	r.Players = updatedPlayers
 
-	if len(r.Players) == 0 { // 유저 연결 끊김으로 방이 비면 삭제
+	if len(r.Players) == 0 {
 		_ = room.DeleteRoom(ctx, r.ID)
 		if err := redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID)); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to delete room %s sessions set after disconnect deletion: %v", r.ID, err)
@@ -111,14 +134,13 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		}
 		if err := r.Save(); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to save room %s after disconnect: %v", r.ID, err)
-			// 이 에러는 클라이언트에게 알리지 않고 로깅만
 		}
 		GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
 			"type": "user.left",
 			"data": map[string]string{
 				"userId":   u.ID,
 				"userName": u.Name,
-				"newHost":  r.Host, // 새 방장 정보도 함께 전달
+				"newHost":  r.Host,
 			},
 		})
 	}
@@ -127,6 +149,9 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 	u.Status = "disconnected"
 	if err := user.DeleteUserSession(u.ID); err != nil {
 		log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s: %v", u.ID, err)
+	}
+	if u.Conn != nil {
+		_ = u.Conn.Close()
 	}
 }
 
@@ -138,11 +163,18 @@ func HandleUserStatus(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	target, err := user.GetSession(targetID)
-	if err != nil { // 세션이 없으면 오프라인으로 간주
+	val, found := ActiveSessions().Load(targetID)
+	if !found {
 		sendResult(u, event.Type, map[string]any{
 			"online": false,
 		}, resp.ErrorCodeUserNotFound)
+		return
+	}
+
+	target, ok := val.(*user.Session)
+	if !ok {
+		log.Logger.Errorf("HandleUserStatus: Found non-session type in activeSessions for ID %s", targetID)
+		sendError(u, resp.ErrorCodeUserProfileFetchFailed)
 		return
 	}
 

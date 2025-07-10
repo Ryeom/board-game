@@ -86,7 +86,9 @@ var systemEvents = map[string]ExecutionEvent{
 
 func sendResult(u *user.Session, eventType string, data interface{}, resultMsgCode string) {
 	if u.Conn == nil {
-		//log.Printf("Cannot send result to user %s: WebSocket connection is nil.", u.ID)
+		// As per the previous discussion, u.Conn should be non-nil for active sessions.
+		// If it's nil here, it implies a logic error or a disconnected session.
+		// No need for connectionsMutex or activeConnections here.
 		return
 	}
 

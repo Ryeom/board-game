@@ -56,7 +56,8 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	allPlayersReady := true
 	for _, playerSession := range playersInRoomSessions {
-		if playerSession.Conn == nil || playerSession.Status != "ready" {
+		//if playerSession.Conn == nil || playerSession.Status != "ready" {
+		if playerSession.Status != "ready" { // 임시
 			allPlayersReady = false
 			log.Logger.Debugf("Player %s is not ready (status: %s, conn: %v)", playerSession.ID, playerSession.Status, playerSession.Conn != nil)
 			break
@@ -123,7 +124,7 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 	sendResult(u, event.Type, map[string]any{
 		"roomId":    r.ID,
 		"gameMode":  r.GameMode,
-		"gameState": currentGameState, // 단언된 상태 전달
+		"gameState": currentGameState,
 	}, resp.SuccessCodeGameStart)
 
 	GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{

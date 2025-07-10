@@ -12,7 +12,7 @@ var ServerLogDesc *os.File
 var AccessLogDesc *os.File
 
 const (
-	ProjectName       = "hanabi"
+	ProjectName       = "hanabi" // ProjectName
 	DefaultLogPath    = ""
 	ServerLogFileName = "server.log"
 	AccessLogFileName = "access.log"
@@ -24,30 +24,14 @@ var Logger *logging.Logger
 
 func InitializeApplicationLog() error {
 	var err error
-	logPath := DefaultLogPath //+ ProjectName + "/"
-	//checkDirectoryPath(logPath)
-	serverLogPath := logPath + ServerLogFileName
-	checkFilePath(serverLogPath)
-	accessLogPath := logPath + AccessLogFileName
-	checkFilePath(accessLogPath)
-	ServerLogDesc, err = os.OpenFile(serverLogPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-	AccessLogDesc, err = os.OpenFile(accessLogPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-
 	Logger = logging.MustGetLogger(ProjectName)
+
 	back1 := logging.NewLogBackend(ServerLogDesc, "", 0)
 	format := logging.MustStringFormatter(`%{color}%{time:0102 15:04:05.000} %{shortfunc:15s} ▶ %{level:.5s}%{color:reset} %{shortfile:15s} %{message}`)
 	back1Formatter := logging.NewBackendFormatter(back1, format)
-	back1Leveled := logging.AddModuleLevel(back1) //기본로그 외에 추가로그를 남기는 로직
-	back1Leveled.SetLevel(logging.ERROR, "")      //추가로그의 로그 기본 레벨
 
 	logging.SetBackend(back1Formatter)
-	logging.SetLevel(logging.DEBUG, ProjectName)
+	logging.SetLevel(logging.DEBUG, "")
 
 	Logger.Info(banner)
 	Logger.Info("Process initialize ... Env :")
