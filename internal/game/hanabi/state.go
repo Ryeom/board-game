@@ -93,3 +93,24 @@ func shuffle(cards []*Card) {
 func randInt(min, max int) int {
 	return min + int(time.Now().UnixNano())%(max-min)
 }
+
+// GetPlayerView 특정 플레이어의 시점에서 본 게임 상태를 반환 (자신의 카드는 보이지 않아야함)
+func (s *State) GetPlayerView(playerID string) *State {
+	playerView := *s
+
+	playerView.PlayerHands = make(map[string][]*Card)
+	for pID, hand := range s.PlayerHands {
+		copiedHand := make([]*Card, len(hand))
+		for i, card := range hand {
+			copiedCard := *card
+			if pID == playerID {
+				copiedCard.Color = ""
+				copiedCard.Number = 0
+				// ColorKnown, NumberKnown : 힌트가 있으면 유지하기
+			}
+			copiedHand[i] = &copiedCard
+		}
+		playerView.PlayerHands[pID] = copiedHand
+	}
+	return &playerView
+}
