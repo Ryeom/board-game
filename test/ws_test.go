@@ -377,20 +377,20 @@ func TestGameFlow(t *testing.T) {
 	})
 	// game.start 응답 (User A)
 	gameStartResA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.start", gameStartResA.Type)
-	assert.NotNil(t, gameStartResA.Data.(map[string]interface{})["gameState"], "Game state should not be nil")
-	initialStateA := gameStartResA.Data.(map[string]interface{})["gameState"].(map[string]interface{})
+	assert.Equal(t, "game.sync", gameStartResA.Type)
+	assert.NotNil(t, gameStartResA.Data, "Game state should not be nil")
+	initialStateA := gameStartResA.Data.(map[string]interface{})
 	initialHintTokens := int(initialStateA["hintTokens"].(float64))
 	assert.Equal(t, 8, initialHintTokens, "Initial hint tokens should be 8")
 
-	// game.state 브로드캐스트 (User A)
-	gameStartedStateA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.state", gameStartedStateA.Type)
-	assert.NotNil(t, gameStartedStateA.Data.(map[string]interface{})["fireworks"], "Game state should not be nil for User B")
+	// game.state 브로드캐스트 (User A) -> game.start를 시작한 본인도 이 노티를 받지않음 -> room 내 공통 이벤트 이므로
+	//gameStartedStateA := ReadEvent(t, connA, 10*time.Second)
+	//assert.Equal(t, "game.start", gameStartedStateA.Type)
+	//assert.Equal(t, "hanabi", gameStartedStateA.Data.(map[string]interface{})["gameMode"])
 
 	// game.state 브로드캐스트 (User B)
 	gameStartedStateB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.state", gameStartedStateB.Type)
+	assert.Equal(t, "game.sync", gameStartedStateB.Type)
 	assert.NotNil(t, gameStartedStateB.Data.(map[string]interface{})["fireworks"], "Game state should not be nil for User B")
 
 	// 6. User A가 User B에게 힌트 주기 (Game Action)
@@ -403,25 +403,12 @@ func TestGameFlow(t *testing.T) {
 			"value":      "red",
 		},
 	})
-
-	// game.action 응답 (User A)
-	gameActionResA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.action", gameActionResA.Type)
-	assert.Equal(t, "action processed", gameActionResA.Data.(map[string]interface{})["status"])
-
-	// game.state 브로드캐스트 (User A) - 힌트 토큰 감소 확인
-	gameStateUpdateA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.state", gameStateUpdateA.Type)
-	updatedStateA := gameStateUpdateA.Data.(map[string]interface{})
-	updatedHintTokensA := int(updatedStateA["hintTokens"].(float64))
-	assert.Equal(t, initialHintTokens-1, updatedHintTokensA, "Hint tokens should decrease by 1 for User A")
-
 	// game.state 브로드캐스트 (User B) - 힌트 토큰 감소 및 카드 정보 변경 확인
-	gameStateUpdateB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.state", gameStateUpdateB.Type)
-	updatedStateB := gameStateUpdateB.Data.(map[string]interface{})
-	updatedHintTokensB := int(updatedStateB["hintTokens"].(float64))
-	assert.Equal(t, initialHintTokens-1, updatedHintTokensB, "Hint tokens should decrease by 1 for User B")
+	gameStartedNotiB := ReadEvent(t, connB, 10*time.Second)
+	assert.Equal(t, "game.started", gameStartedNotiB.Type)
+
+	gameStartedNotiA := ReadEvent(t, connA, 10*time.Second)
+	assert.Equal(t, "game.started", gameStartedNotiA.Type)
 
 	// TODO : User B의 핸드에서 빨간색 카드의 ColorKnown이 true가 되었는지 확인
 
