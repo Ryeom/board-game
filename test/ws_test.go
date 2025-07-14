@@ -615,3 +615,43 @@ func TestGameEndFailureNotHost(t *testing.T) {
 	assert.Equal(t, "error", errorResB.Type)
 	assert.Equal(t, "ERROR_ROOM_NOT_HOST", errorResB.ErrorCode)
 }
+
+func TestGameInfoFetch(t *testing.T) {
+	ts, wsURL := startTestServer(t)
+	defer ts.Close()
+
+	// 1. 사용자 연결 및 식별
+	connA := ConnectAndIdentify(t, wsURL, "userA_info", "AliceInfo")
+	defer connA.Close()
+	_ = ReadEvent(t, connA, 10*time.Second) // user.identify 응답
+
+	// 2. game.info 이벤트 전송 (하나비 게임 모드 요청)
+	SendEvent(t, connA, WSEvent{
+		Type: "game.info",
+		Data: map[string]interface{}{"gameMode": "hanabi"},
+	})
+
+	// 3. 서버 응답 수신
+	gameInfoRes := ReadEvent(t, connA, 10*time.Second)
+
+	// 4. 응답 검증
+	assert.Equal(t, "game.info", gameInfoRes.Type)
+	assert.True(t, gameInfoRes.Success)
+	assert.Equal(t, 200, int(gameInfoRes.Code.(float64)))
+	assert.Equal(t, "SUCCESS_SYSTEM_OK", gameInfoRes.ErrorCode)
+
+	assert.NotNil(t, gameInfoRes.Data, "Game info data should not be nil")
+	dataMap, ok := gameInfoRes.Data.(map[string]interface{})
+	assert.True(t, ok, "Data should be a map[string]interface{}")
+
+	assert.Equal(t, "hanabi", dataMap["gameMode"])
+
+	infoMap, ok := dataMap["info"].(map[string]interface{})
+	assert.True(t, ok, "Info should be a map[string]interface{}")
+	assert.Equal(t, "Hanabi", infoMap["name"])
+	assert.Contains(t, infoMap["description"].(string), "협력 카드 게임")
+
+	rulesSummary, ok := infoMap["rulesSummary"].([]interface{})
+	assert.True(t, ok)
+	assert.Greater(t, len(rulesSummary), 0)
+}
