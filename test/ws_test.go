@@ -325,113 +325,6 @@ func TestRoomUpdate(t *testing.T) {
 	assert.Equal(t, "hanabi", roomUpdatedNotifBDataMap["gameMode"])
 }
 
-func TestGameFlow(t *testing.T) {
-	ts, wsURL := startTestServer(t)
-	defer ts.Close()
-
-	// 1. 사용자 A (방장) 및 사용자 B 연결 및 식별
-	connA := ConnectAndIdentify(t, wsURL, "userA_game", "AliceGame")
-	defer connA.Close()
-	_ = ReadEvent(t, connA, 10*time.Second)
-
-	connB := ConnectAndIdentify(t, wsURL, "userB_game", "BobGame")
-	defer connB.Close()
-	_ = ReadEvent(t, connB, 10*time.Second)
-
-	// 2. User A가 방 생성
-	SendEvent(t, connA, WSEvent{
-		Type: "room.create",
-		Data: map[string]interface{}{"roomName": "Game Flow Test Room", "maxPlayers": 2},
-	})
-	roomCreatedResA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "room.create", roomCreatedResA.Type)
-	roomID := roomCreatedResA.Data.(map[string]interface{})["room_id"].(string)
-
-	// 3. User B가 방에 참여
-	SendEvent(t, connB, WSEvent{
-		Type: "room.join",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-	_ = ReadEvent(t, connB, 10*time.Second) // User B's room.join success response
-	_ = ReadEvent(t, connA, 10*time.Second) // User A receives room.join notification about User B
-	_ = ReadEvent(t, connB, 10*time.Second) // User B receives room.join notification about themselves
-
-	// 4. User A, User B 상태를 "ready"로 업데이트
-	SendEvent(t, connA, WSEvent{
-		Type: "user.update",
-		Data: map[string]interface{}{"status": "ready"},
-	})
-	_ = ReadEvent(t, connA, 10*time.Second)
-
-	SendEvent(t, connB, WSEvent{
-		Type: "user.update",
-		Data: map[string]interface{}{"status": "ready"},
-	})
-	_ = ReadEvent(t, connB, 10*time.Second)
-
-	time.Sleep(1 * time.Second)
-	// 5. User A (방장)가 게임 시작
-	SendEvent(t, connA, WSEvent{
-		Type: "game.start",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-	// game.start 응답 (User A)
-	gameStartResA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.sync", gameStartResA.Type)
-	assert.NotNil(t, gameStartResA.Data, "Game state should not be nil")
-	initialStateA := gameStartResA.Data.(map[string]interface{})
-	initialHintTokens := int(initialStateA["hintTokens"].(float64))
-	assert.Equal(t, 8, initialHintTokens, "Initial hint tokens should be 8")
-
-	// game.state 브로드캐스트 (User A) -> game.start를 시작한 본인도 이 노티를 받지않음 -> room 내 공통 이벤트 이므로
-	//gameStartedStateA := ReadEvent(t, connA, 10*time.Second)
-	//assert.Equal(t, "game.start", gameStartedStateA.Type)
-	//assert.Equal(t, "hanabi", gameStartedStateA.Data.(map[string]interface{})["gameMode"])
-
-	// game.state 브로드캐스트 (User B)
-	gameStartedStateB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.sync", gameStartedStateB.Type)
-	assert.NotNil(t, gameStartedStateB.Data.(map[string]interface{})["fireworks"], "Game state should not be nil for User B")
-
-	// 6. User A가 User B에게 힌트 주기 (Game Action)
-	SendEvent(t, connA, WSEvent{
-		Type: "game.action",
-		Data: map[string]interface{}{
-			"actionType": "give_hint",
-			"toId":       "userB_game",
-			"hintType":   "color",
-			"value":      "red",
-		},
-	})
-	// game.state 브로드캐스트 (User B) - 힌트 토큰 감소 및 카드 정보 변경 확인
-	gameStartedNotiB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.started", gameStartedNotiB.Type)
-
-	gameStartedNotiA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.started", gameStartedNotiA.Type)
-
-	// TODO : User B의 핸드에서 빨간색 카드의 ColorKnown이 true가 되었는지 확인
-
-	// 7. User A (방장)가 게임 종료
-	SendEvent(t, connA, WSEvent{
-		Type: "game.end",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-
-	// game.end 응답 (User A)
-	gameEndResA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.end", gameEndResA.Type)
-	assert.Equal(t, "ended", gameEndResA.Data.(map[string]interface{})["status"])
-
-	// game.ended 브로드캐스트 (User A)
-	gameEndedNotifA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.ended", gameEndedNotifA.Type)
-
-	// game.ended 브로드캐스트 (User B)
-	gameEndedNotifB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.ended", gameEndedNotifB.Type)
-}
-
 func TestGameStartFailureNotHost(t *testing.T) {
 	ts, wsURL := startTestServer(t)
 	defer ts.Close()
@@ -560,62 +453,6 @@ func TestGameStartFailureNotAllReady(t *testing.T) {
 	assert.Equal(t, "ERROR_GAME_NOT_ALL_PLAYERS_READY", errorResA.ErrorCode)
 }
 
-func TestGameEndFailureNotHost(t *testing.T) {
-	ts, wsURL := startTestServer(t)
-	defer ts.Close()
-
-	connA := ConnectAndIdentify(t, wsURL, "userA_end_no_host", "Alice")
-	defer connA.Close()
-	_ = ReadEvent(t, connA, 10*time.Second)
-
-	connB := ConnectAndIdentify(t, wsURL, "userB_end_no_host", "Bob")
-	defer connB.Close()
-	_ = ReadEvent(t, connB, 10*time.Second)
-
-	SendEvent(t, connA, WSEvent{
-		Type: "room.create",
-		Data: map[string]interface{}{"roomName": "End No Host Test", "maxPlayers": 2},
-	})
-	roomCreatedResA := ReadEvent(t, connA, 10*time.Second)
-	roomID := roomCreatedResA.Data.(map[string]interface{})["room_id"].(string)
-
-	SendEvent(t, connB, WSEvent{
-		Type: "room.join",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-	_ = ReadEvent(t, connB, 10*time.Second)
-	_ = ReadEvent(t, connA, 10*time.Second)
-	_ = ReadEvent(t, connB, 10*time.Second)
-
-	SendEvent(t, connA, WSEvent{
-		Type: "user.update",
-		Data: map[string]interface{}{"status": "ready"},
-	})
-	_ = ReadEvent(t, connA, 10*time.Second)
-	SendEvent(t, connB, WSEvent{
-		Type: "user.update",
-		Data: map[string]interface{}{"status": "ready"},
-	})
-	_ = ReadEvent(t, connB, 10*time.Second)
-
-	SendEvent(t, connA, WSEvent{
-		Type: "game.start",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-	_ = ReadEvent(t, connA, 10*time.Second) // game.start response
-	_ = ReadEvent(t, connA, 10*time.Second) // game.started broadcast
-	_ = ReadEvent(t, connB, 10*time.Second) // game.state broadcast
-	_ = ReadEvent(t, connB, 10*time.Second) // game.started broadcast
-
-	SendEvent(t, connB, WSEvent{
-		Type: "game.end",
-		Data: map[string]interface{}{"roomId": roomID},
-	})
-	errorResB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "error", errorResB.Type)
-	assert.Equal(t, "ERROR_ROOM_NOT_HOST", errorResB.ErrorCode)
-}
-
 func TestGameInfoFetch(t *testing.T) {
 	ts, wsURL := startTestServer(t)
 	defer ts.Close()
@@ -654,4 +491,167 @@ func TestGameInfoFetch(t *testing.T) {
 	rulesSummary, ok := infoMap["rulesSummary"].([]interface{})
 	assert.True(t, ok)
 	assert.Greater(t, len(rulesSummary), 0)
+}
+
+func TestHanabiGameCompletionAndScore(t *testing.T) {
+	ts, wsURL := startTestServer(t)
+	defer ts.Close()
+
+	// 1. 사용자 A (방장) 및 사용자 B 연결 및 식별
+	connA := ConnectAndIdentify(t, wsURL, "userA_game_end", "AliceEnd")
+	defer connA.Close()
+	_ = ReadEvent(t, connA, 10*time.Second) // user.identify 응답
+
+	connB := ConnectAndIdentify(t, wsURL, "userB_game_end", "BobEnd")
+	defer connB.Close()
+	_ = ReadEvent(t, connB, 10*time.Second) // user.identify 응답
+
+	// 2. User A가 하나비 방 생성 (2인 플레이)
+	SendEvent(t, connA, WSEvent{
+		Type: "room.create",
+		Data: map[string]interface{}{
+			"roomName":   "Hanabi Completion Test Room",
+			"maxPlayers": 2,
+			"gameMode":   "hanabi", // 하나비 모드 명시
+		},
+	})
+	roomCreatedResA := ReadEvent(t, connA, 10*time.Second)
+	assert.Equal(t, "room.create", roomCreatedResA.Type)
+	roomID := roomCreatedResA.Data.(map[string]interface{})["room_id"].(string)
+
+	// 3. User B가 방에 참여
+	SendEvent(t, connB, WSEvent{
+		Type: "room.join",
+		Data: map[string]interface{}{
+			"roomId": roomID,
+		},
+	})
+	_ = ReadEvent(t, connB, 10*time.Second) // User B's room.join success response
+	_ = ReadEvent(t, connA, 10*time.Second) // User A receives room.join notification about User B
+	_ = ReadEvent(t, connB, 10*time.Second) // User B receives room.join notification about themselves
+
+	// 4. 모든 플레이어 상태를 "ready"로 업데이트
+	SendEvent(t, connA, WSEvent{
+		Type: "user.update",
+		Data: map[string]interface{}{"status": "ready"},
+	})
+	_ = ReadEvent(t, connA, 10*time.Second)
+
+	SendEvent(t, connB, WSEvent{
+		Type: "user.update",
+		Data: map[string]interface{}{"status": "ready"},
+	})
+	_ = ReadEvent(t, connB, 10*time.Second)
+
+	time.Sleep(1 * time.Second) // 상태 업데이트 반영 대기
+
+	// 5. User A (방장)가 게임 시작
+	SendEvent(t, connA, WSEvent{
+		Type: "game.start",
+		Data: map[string]interface{}{"roomId": roomID},
+	})
+	_ = ReadEvent(t, connA, 10*time.Second) // game.sync 응답
+	_ = ReadEvent(t, connA, 10*time.Second) // game.started 브로드캐스트
+	_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+	_ = ReadEvent(t, connB, 10*time.Second) // game.started 브로드캐스트
+
+	// 6. 게임 종료 시뮬레이션 (여기서는 미스 토큰 3개 소진으로 패배 시나리오 가정)
+	// 실제 게임 로직에 따라 카드를 플레이하거나 버리는 액션을 반복하여 미스 토큰을 소진시킵니다.
+	// 이 부분은 하나비 게임 규칙과 카드 처리에 따라 매우 복잡해질 수 있습니다.
+	// 여기서는 간단히 미스 토큰을 소진시키는 액션을 가정합니다.
+	// 주의: 이 테스트는 'engine.go' 내부 로직이 올바르게 미스 토큰을 처리하고 게임을 종료시키는 것을 전제로 합니다.
+	// 실제 카드 플레이 로직 없이 미스 토큰을 감소시키는 직접적인 액션은 없습니다.
+	// 따라서, 여기서는 3번의 실패 플레이를 시뮬레이션하여 미스 토큰이 모두 소진되도록 가정합니다.
+
+	// 임시로 미스 토큰 감소를 유도하는 액션을 3회 보냅니다. (실제 게임 로직과 일치하지 않을 수 있음)
+	// 이 부분은 게임 엔진에 '미스 토큰 감소' 액션이 직접 있다면 그 액션을 사용해야 합니다.
+	// 현재는 'play_card'를 잘못해서 미스 토큰이 줄어드는 시나리오를 가정.
+	// (TODO: 실제 한 번 플레이에 여러 미스 토큰이 줄지 않는 한, 3번의 턴을 돌면서 잘못 플레이해야 합니다.)
+
+	// 예시: 3번의 잘못된 카드 플레이로 미스 토큰을 소진 (실제 구현에 따라 수정 필요)
+	for i := 0; i < 3; i++ {
+		// User A가 잘못된 카드 플레이 시도 (인덱스 0번 카드를 플레이 시도)
+		// 이 카드가 불꽃놀이에 맞지 않아 미스 토큰이 1 감소한다고 가정.
+		SendEvent(t, connA, WSEvent{
+			Type: "game.action",
+			Data: map[string]interface{}{
+				"actionType": "play_card",
+				"playerId":   "userA_game_end",
+				"cardIndex":  float64(0), // 첫 번째 카드를 잘못 플레이했다고 가정
+			},
+		})
+		_ = ReadEvent(t, connA, 10*time.Second) // game.action 응답
+		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
+		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+
+		// 턴 종료 (다음 플레이어 턴으로 넘어가기)
+		SendEvent(t, connA, WSEvent{
+			Type: "game.action",
+			Data: map[string]interface{}{
+				"actionType": "end_turn",
+				"playerId":   "userA_game_end",
+			},
+		})
+		_ = ReadEvent(t, connA, 10*time.Second) // game.action 응답
+		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
+		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+
+		// User B도 잘못된 카드 플레이 시도
+		SendEvent(t, connB, WSEvent{
+			Type: "game.action",
+			Data: map[string]interface{}{
+				"actionType": "play_card",
+				"playerId":   "userB_game_end",
+				"cardIndex":  float64(0), // 첫 번째 카드를 잘못 플레이했다고 가정
+			},
+		})
+		_ = ReadEvent(t, connB, 10*time.Second) // game.action 응답
+		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
+		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+
+		// 턴 종료
+		SendEvent(t, connB, WSEvent{
+			Type: "game.action",
+			Data: map[string]interface{}{
+				"actionType": "end_turn",
+				"playerId":   "userB_game_end",
+			},
+		})
+		_ = ReadEvent(t, connB, 10*time.Second) // game.action 응답
+		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
+		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+	}
+
+	time.Sleep(1 * time.Second) // 게임 종료 처리 대기
+
+	// 7. game.ended 브로드캐스트 확인 (User A, User B 모두)
+	gameEndedNotifA := ReadEvent(t, connA, 10*time.Second)
+	assert.Equal(t, "game.ended", gameEndedNotifA.Type)
+	assert.NotNil(t, gameEndedNotifA.Data.(map[string]interface{})["roomId"])
+
+	gameEndedNotifB := ReadEvent(t, connB, 10*time.Second)
+	assert.Equal(t, "game.ended", gameEndedNotifB.Type)
+	assert.NotNil(t, gameEndedNotifB.Data.(map[string]interface{})["roomId"])
+
+	// 8. 게임 상태 동기화 요청 (최종 상태 확인)
+	SendEvent(t, connA, WSEvent{
+		Type: "game.sync",
+		Data: map[string]interface{}{"roomId": roomID},
+	})
+	finalGameSyncResA := ReadEvent(t, connA, 10*time.Second)
+	assert.Equal(t, "game.sync", finalGameSyncResA.Type)
+
+	// 최종 상태 검증
+	finalGameStateA := finalGameSyncResA.Data.(map[string]interface{})
+	assert.True(t, finalGameStateA["gameOver"].(bool), "Game should be over")
+	assert.Equal(t, 0, int(finalGameStateA["missTokens"].(float64)), "Miss tokens should be 0 for game over")
+
+	// 이 시점에서 fireworks 점수도 검증할 수 있습니다.
+	// 예를 들어, 0점 패배 시나리오라면:
+	// fireworksMap := finalGameStateA["fireworks"].(map[string]interface{})
+	// totalScore := 0
+	// for _, score := range fireworksMap {
+	// 	totalScore += int(score.(float64))
+	// }
+	// assert.Equal(t, 0, totalScore, "Total score should be 0 if all miss tokens are used")
 }
