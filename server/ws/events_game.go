@@ -2,7 +2,6 @@ package ws
 
 import (
 	"context"
-	"fmt"
 	"github.com/Ryeom/board-game/internal/domain/room"
 	"github.com/Ryeom/board-game/internal/game"
 	"github.com/Ryeom/board-game/internal/game/hanabi"
@@ -57,10 +56,10 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	allPlayersReady := true
 	for _, playerSession := range playersInRoomSessions {
-		//if playerSession.Conn == nil || playerSession.Status != "ready" { // 이전 문제 해결로 Conn은 nil이 아니므로 제거
-		if playerSession.Status != "ready" {
+		//if playerSession.Conn == nil || playerSession.Status != "ready" {
+		if playerSession.Status != "ready" { // 임시
 			allPlayersReady = false
-			log.Logger.Debugf("Player %s is not ready (status: %s)", playerSession.ID, playerSession.Status)
+			log.Logger.Debugf("Player %s is not ready (status: %s, conn: %v)", playerSession.ID, playerSession.Status, playerSession.Conn != nil)
 			break
 		}
 	}
@@ -92,12 +91,33 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 	case room.GameModeHanabi:
 		hanabiEngine := hanabi.NewEngine(
 			playersInRoom,
-			// 각 플레이어에게 자신의 카드를 숨긴 상태를 전송
-			broadcast,
+			func(eventName string, playerIDs []string, state any) {
+				fullHanabiState, ok := state.(*hanabi.State)
+				if !ok {
+					log.Logger.Errorf("HandleGameStart BroadcastFunc: Invalid state type, expected *hanabi.State")
+					return
+				}
+
+				for _, pID := range playerIDs {
+					playerView := fullHanabiState.GetPlayerView(pID) // 플레이어별로 가공된 데이터
+					payload := map[string]any{
+						"type": eventName,
+						"data": map[string]any{
+							"state": playerView,
+						},
+						"message": "게임 상태 업데이트",
+						"success": true,
+						"code":    200,
+					}
+					GlobalBroadcaster.SendToPlayer(pID, payload)
+				}
+			},
 			setGameStateFunc,
 			getGameStateFunc,
 		)
 		engine = hanabiEngine
+	case room.GameMode6Nimmt:
+
 	default:
 		sendError(u, resp.ErrorCodeRoomUnsupportedGameMode)
 		return
@@ -113,35 +133,6 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-}
-func broadcast(eventType string, playerIDs []string, state any) {
-	fullState := state.(*hanabi.State)
-	for _, pID := range playerIDs {
-		// 플레이어의 라이브 세션 가져오기
-		liveSessionVal, found := ActiveSessions().Load(pID)
-		if !found {
-			log.Logger.Warningf("HandleGameStart BroadcastFunc: Live session not found for player ID %s", pID)
-			continue
-		}
-		liveSession, ok := liveSessionVal.(*user.Session)
-		if !ok || liveSession.Conn == nil {
-			log.Logger.Warningf("HandleGameStart BroadcastFunc: Invalid or nil connection for player ID %s", pID)
-			continue
-		}
-
-		// 해당 플레이어의 시점에서 본 게임 상태 생성 (자신의 카드 숨김)
-		playerView := fullState.GetPlayerView(pID)
-
-		// 필터링된 상태를 플레이어의 WebSocket 연결로 직접 전송
-		err := liveSession.Conn.WriteJSON(map[string]any{
-			"type": eventType,
-			"data": playerView,
-		})
-		fmt.Println(pID, "에게 sync 보냄")
-		if err != nil {
-			log.Logger.Errorf("HandleGameStart BroadcastFunc: Failed to send filtered game state to player %s: %v", pID, err)
-		}
-	}
 }
 
 // HandleGameEnd 게임 종료
@@ -194,7 +185,11 @@ func HandleGameEnd(ctx context.Context, u *user.Session, event SocketEvent) {
 			"roomId": r.ID,
 			"hostId": u.ID,
 		},
+		"message": "게임이 종료되었습니다!",
+		"success": true,
+		"code":    200,
 	})
+
 }
 
 // HandleGameAction 플레이어 행동
@@ -286,7 +281,7 @@ func HandleGameSync(ctx context.Context, u *user.Session, event SocketEvent) {
 			sendError(u, resp.ErrorCodeGameSyncFailed)
 			return
 		}
-		// 게임 동기화 요청 시에도 플레이어 뷰로 필터링하여 전달
+		// 현재 요청한 플레이어의 시점에서 본 게임 상태를 생성
 		currentGameState = hanabiEng.CurrentState.GetPlayerView(u.ID)
 	default:
 		sendError(u, resp.ErrorCodeRoomUnsupportedGameMode)
@@ -304,10 +299,10 @@ func HandleGamePause(ctx context.Context, user *user.Session, event SocketEvent)
 	sendError(user, resp.ErrorCodeGameFeatureNotImplemented)
 }
 
-func HandleGameInfo(ctx context.Context, u *user.Session, event SocketEvent) {
+func HandleGameInfo(ctx context.Context, user *user.Session, event SocketEvent) {
 	gameModeStr, ok := event.Data["gameMode"].(string)
 	if !ok || gameModeStr == "" {
-		sendError(u, resp.ErrorCodeRoomInvalidRequest)
+		sendError(user, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
 
@@ -337,12 +332,12 @@ func HandleGameInfo(ctx context.Context, u *user.Session, event SocketEvent) {
 			},
 		}
 	default:
-		sendError(u, resp.ErrorCodeRoomUnsupportedGameMode)
+		sendError(user, resp.ErrorCodeRoomUnsupportedGameMode)
 		return
 	}
 
-	sendResult(u, event.Type, map[string]any{
+	sendResult(user, event.Type, map[string]any{
 		"gameMode": gameMode,
 		"info":     gameInfo,
-	}, resp.SuccessCodeGameInfo)
+	}, resp.SuccessCodeSystemOK)
 }
