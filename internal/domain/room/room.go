@@ -13,6 +13,7 @@ type GameMode string
 
 const (
 	GameModeHanabi GameMode = "hanabi"
+	GameMode6Nimmt GameMode = "6nimmt"
 )
 
 type Room struct {

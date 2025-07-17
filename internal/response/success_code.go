@@ -31,4 +31,5 @@ const (
 	SuccessCodeGameEnd    = "SUCCESS_GAME_END"
 	SuccessCodeGameAction = "SUCCESS_GAME_ACTION"
 	SuccessCodeGameSync   = "SUCCESS_GAME_SYNC"
+	SuccessCodeGameInfo   = "SUCCESS_GAME_INFO"
 )

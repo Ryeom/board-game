@@ -9,7 +9,7 @@ type Event struct {
 	Data map[string]any
 }
 
-type BroadcastFunc func(playerIDs []string, state any)
+type BroadcastFunc func(eventName string, playerIDs []string, state any)
 type SetGameStateFunc func(state *State) error
 type GetGameStateFunc func() *State
 
@@ -50,9 +50,12 @@ func (e *Engine) StartGame() {
 	if err := e.SetGameState(state); err != nil {
 		fmt.Printf("[Hanabi] Error saving game state on start: %v\n", err)
 	}
-	e.Broadcast(e.Players, state)
+	//e.Broadcast("", e.Players, state)
 }
 
+func (e *Engine) EndGame() {
+
+}
 func (e *Engine) HandleEvent(event any) error {
 	cast, ok := event.(Event)
 	if !ok {
@@ -82,7 +85,7 @@ func (e *Engine) HandleEvent(event any) error {
 			fmt.Printf("[Hanabi] Error saving game state after event %s: %v\n", cast.Type, saveErr)
 		}
 	}
-	e.Broadcast(e.Players, e.CurrentState)
+	// e.Broadcast("",e.Players, e.CurrentState)
 	return nil
 }
 
