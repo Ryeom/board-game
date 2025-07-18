@@ -8,11 +8,12 @@ import (
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
+	"time"
 )
 
 var activeGameEngines = make(map[string]game.Engine)
 
-// HandleGameStart 게임 시작
+// HandleGameStart (game.start)게임 시작
 func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 	if u.RoomID == "" {
 		sendError(u, resp.ErrorCodeChatNotInRoom)
@@ -99,7 +100,7 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 				}
 
 				for _, pID := range playerIDs {
-					playerView := fullHanabiState.GetPlayerView(pID) // 플레이어별로 가공된 데이터
+					playerView := fullHanabiState.GetPlayerView(pID)
 					payload := map[string]any{
 						"type": eventName,
 						"data": map[string]any{
@@ -109,7 +110,7 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 						"success": true,
 						"code":    200,
 					}
-					GlobalBroadcaster.SendToPlayer(pID, payload)
+					GlobalBroadcaster.SendToPlayer(pID, payload) // start:1 (게임에 활용하기 위한 데이터) to All (game.started.init)
 				}
 			},
 			setGameStateFunc,
@@ -133,6 +134,15 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
+	// start:2 (host에 방생성 성공 알림) to host
+	sendResult(u, event.Type, map[string]any{
+		"type":       "game.started",
+		"roomId":     r.ID,
+		"gameMode":   r.GameMode,
+		"gameStatus": "started",
+		//"gameState":  r.IsGameStarted,
+		"startedAt": time.Now(),
+	}, resp.SuccessCodeGameStart)
 }
 
 // HandleGameEnd 게임 종료
