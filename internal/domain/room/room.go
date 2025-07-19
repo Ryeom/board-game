@@ -4,16 +4,10 @@ import (
 	"context"
 	"errors"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
+	"github.com/Ryeom/board-game/internal/game"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/util"
 	"time"
-)
-
-type GameMode string
-
-const (
-	GameModeHanabi GameMode = "hanabi"
-	GameMode6Nimmt GameMode = "6nimmt"
 )
 
 type Room struct {
@@ -23,7 +17,7 @@ type Room struct {
 	Players       []string  `json:"players"`
 	Password      string    `json:"-"`
 	MaxPlayers    int       `json:"maxPlayers"`
-	GameMode      GameMode  `json:"gameMode"`
+	GameMode      game.Mode `json:"gameMode"`
 	IsGameStarted bool      `json:"isGameStarted"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
@@ -48,7 +42,7 @@ func CreateRoom(ctx context.Context, roomID string, hostID string, roomName stri
 		Players:       []string{hostID},
 		Password:      hashedPassword,
 		MaxPlayers:    maxPlayers,
-		GameMode:      GameModeHanabi,
+		GameMode:      game.ModeHanabi,
 		IsGameStarted: false, // 초기에는 게임이 시작되지 않은 상태
 		CreatedAt:     time.Now(),
 	}
