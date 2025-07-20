@@ -1,110 +1,11 @@
 package test
 
 import (
-	"context"
-	"net/http/httptest"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
-	redisutil "github.com/Ryeom/board-game/infra/redis"
-	l "github.com/Ryeom/board-game/log"
-	"github.com/Ryeom/board-game/server"
-	"github.com/Ryeom/board-game/server/ws" // Ensure ws is imported
-	"github.com/labstack/echo/v4"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
-
-// Redis 데이터를 정리
-func cleanRedis(t *testing.T) {
-	ctx := context.Background()
-
-	// 각 Redis 타겟별로 정리할 키 패턴 정의
-	cleanupMap := map[string][]string{
-		redisutil.RedisTargetRoom: {"room:*"},                                               // 방 데이터
-		redisutil.RedisTargetUser: {"user:session:*", "jwt:blacklist:*", "room_sessions:*"}, // 사용자 세션 및 JWT 블랙리스트
-		redisutil.RedisTargetGame: {"game:*"},                                               // 게임 상태 데이터
-	}
-
-	for target, patterns := range cleanupMap {
-		rdbClient := redisutil.Client[target]
-		if rdbClient == nil {
-			t.Fatalf("Redis client for target %s is not initialized.", target)
-		}
-
-		for _, pattern := range patterns {
-			keys, err := rdbClient.Keys(ctx, pattern).Result()
-			if err != nil {
-				t.Fatalf("Failed to get keys for target %s, pattern %s: %v", target, pattern, err)
-			}
-			if len(keys) > 0 {
-				_, err := rdbClient.Del(ctx, keys...).Result()
-				if err != nil {
-					t.Fatalf("Failed to delete keys for target %s, pattern %s: %v", target, pattern, err)
-				}
-				t.Logf("Cleaned %d keys for target %s, pattern %s", len(keys), target, pattern)
-			} else {
-				t.Logf("No keys found for target %s, pattern %s", target, pattern)
-			}
-		}
-	}
-	t.Logf("Finished Redis cleanup across all relevant targets.")
-}
-
-// startTestServer Echo 서버를 시작 및 WebSocket 핸들러를 등록
-func startTestServer(t *testing.T) (*httptest.Server, string) {
-	oldArgs := os.Args
-	os.Args = []string{oldArgs[0], "local"}
-	defer func() { os.Args = oldArgs }()
-
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("Failed to get current file path for test setup")
-	}
-	testDir := filepath.Dir(filename)
-	projectRoot := filepath.Dir(testDir)
-
-	viper.AddConfigPath(projectRoot)
-	viper.SetConfigName("settings")
-	viper.SetConfigType("toml")
-
-	err := l.InitializeApplicationLog()
-	if err != nil {
-		t.Fatalf("Failed to initialize application log for tests: %v", err)
-	}
-
-	err = server.SetEnv()
-	if err != nil {
-		t.Fatalf("Failed to set environment for tests: %v", err)
-	}
-
-	err = server.SetConfig()
-	if err != nil {
-		t.Fatalf("Failed to load server configuration for tests: %v", err)
-	}
-
-	e := echo.New()
-	server.Initialize(e)
-
-	// Redis 클린업 호출
-	cleanRedis(t)
-
-	e.GET("/ws", func(c echo.Context) error {
-		return ws.Websocket(c)
-	})
-
-	ts := httptest.NewServer(e)
-	u, err := url.Parse(ts.URL)
-	assert.NoError(t, err)
-	u.Scheme = "ws"
-	u.Path = "/ws"
-
-	return ts, u.String()
-}
 
 func TestWebSocketConnectionAndIdentify(t *testing.T) {
 	ts, wsURL := startTestServer(t)
@@ -492,7 +393,6 @@ func TestGameInfoFetch(t *testing.T) {
 	assert.True(t, ok)
 	assert.Greater(t, len(rulesSummary), 0)
 }
-
 func TestHanabiGameCompletionAndScore(t *testing.T) {
 	ts, wsURL := startTestServer(t)
 	defer ts.Close()
@@ -500,11 +400,11 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 	// 1. 사용자 A (방장) 및 사용자 B 연결 및 식별
 	connA := ConnectAndIdentify(t, wsURL, "userA_game_end", "AliceEnd")
 	defer connA.Close()
-	_ = ReadEvent(t, connA, 10*time.Second) // user.identify 응답
+	_ = ReadEvent(t, connA, 10*time.Second) // user.identify for A
 
 	connB := ConnectAndIdentify(t, wsURL, "userB_game_end", "BobEnd")
 	defer connB.Close()
-	_ = ReadEvent(t, connB, 10*time.Second) // user.identify 응답
+	_ = ReadEvent(t, connB, 10*time.Second) // user.identify for B
 
 	// 2. User A가 하나비 방 생성 (2인 플레이)
 	SendEvent(t, connA, WSEvent{
@@ -526,9 +426,9 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 			"roomId": roomID,
 		},
 	})
-	_ = ReadEvent(t, connB, 10*time.Second) // User B's room.join success response
-	_ = ReadEvent(t, connA, 10*time.Second) // User A receives room.join notification about User B
-	_ = ReadEvent(t, connB, 10*time.Second) // User B receives room.join notification about themselves
+	_ = ReadEvent(t, connB, 10*time.Second)
+	_ = ReadEvent(t, connA, 10*time.Second)
+	_ = ReadEvent(t, connB, 10*time.Second)
 
 	// 4. 모든 플레이어 상태를 "ready"로 업데이트
 	SendEvent(t, connA, WSEvent{
@@ -543,115 +443,100 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 	})
 	_ = ReadEvent(t, connB, 10*time.Second)
 
-	time.Sleep(1 * time.Second) // 상태 업데이트 반영 대기
-
 	// 5. User A (방장)가 게임 시작
 	SendEvent(t, connA, WSEvent{
 		Type: "game.start",
 		Data: map[string]interface{}{"roomId": roomID},
 	})
-	_ = ReadEvent(t, connA, 10*time.Second) // game.sync 응답
-	_ = ReadEvent(t, connA, 10*time.Second) // game.started 브로드캐스트
-	_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
-	_ = ReadEvent(t, connB, 10*time.Second) // game.started 브로드캐스트
+	gameStartedBroadcastA := ReadEvent(t, connA, 10*time.Second)
+	assert.Equal(t, "game.started", gameStartedBroadcastA.Type, "User A should receive 'game.started' broadcast")
+	assert.NotNil(t, gameStartedBroadcastA.Data.(map[string]interface{})["state"], "Game state should not be nil for A")
 
-	// 6. 게임 종료 시뮬레이션 (여기서는 미스 토큰 3개 소진으로 패배 시나리오 가정)
-	// 실제 게임 로직에 따라 카드를 플레이하거나 버리는 액션을 반복하여 미스 토큰을 소진시킵니다.
-	// 이 부분은 하나비 게임 규칙과 카드 처리에 따라 매우 복잡해질 수 있습니다.
-	// 여기서는 간단히 미스 토큰을 소진시키는 액션을 가정합니다.
-	// 주의: 이 테스트는 'engine.go' 내부 로직이 올바르게 미스 토큰을 처리하고 게임을 종료시키는 것을 전제로 합니다.
-	// 실제 카드 플레이 로직 없이 미스 토큰을 감소시키는 직접적인 액션은 없습니다.
-	// 따라서, 여기서는 3번의 실패 플레이를 시뮬레이션하여 미스 토큰이 모두 소진되도록 가정합니다.
+	gameStartedBroadcastB := ReadEvent(t, connB, 10*time.Second)
+	assert.Equal(t, "game.started", gameStartedBroadcastB.Type, "User B should receive 'game.started' broadcast")
+	assert.NotNil(t, gameStartedBroadcastB.Data.(map[string]interface{})["state"], "Game state should not be nil for B")
 
-	// 임시로 미스 토큰 감소를 유도하는 액션을 3회 보냅니다. (실제 게임 로직과 일치하지 않을 수 있음)
-	// 이 부분은 게임 엔진에 '미스 토큰 감소' 액션이 직접 있다면 그 액션을 사용해야 합니다.
-	// 현재는 'play_card'를 잘못해서 미스 토큰이 줄어드는 시나리오를 가정.
-	// (TODO: 실제 한 번 플레이에 여러 미스 토큰이 줄지 않는 한, 3번의 턴을 돌면서 잘못 플레이해야 합니다.)
-
-	// 예시: 3번의 잘못된 카드 플레이로 미스 토큰을 소진 (실제 구현에 따라 수정 필요)
+	// 6. 게임 종료 시뮬레이션 (미스 토큰 3개 소진으로 패배 시나리오 가정)
 	for i := 0; i < 3; i++ {
-		// User A가 잘못된 카드 플레이 시도 (인덱스 0번 카드를 플레이 시도)
-		// 이 카드가 불꽃놀이에 맞지 않아 미스 토큰이 1 감소한다고 가정.
 		SendEvent(t, connA, WSEvent{
 			Type: "game.action",
 			Data: map[string]interface{}{
 				"actionType": "play_card",
-				"playerId":   "userA_game_end",
-				"cardIndex":  float64(0), // 첫 번째 카드를 잘못 플레이했다고 가정
+				"cardIndex":  float64(0),
 			},
 		})
-		_ = ReadEvent(t, connA, 10*time.Second) // game.action 응답
-		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
-		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+		// A gets action success response
+		actionResA := ReadEvent(t, connA, 10*time.Second)
+		assert.Equal(t, "game.action", actionResA.Type)
+		assert.True(t, actionResA.Success)
+		// Both A and B get state update broadcast
+		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
+		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
 
-		// 턴 종료 (다음 플레이어 턴으로 넘어가기)
 		SendEvent(t, connA, WSEvent{
 			Type: "game.action",
 			Data: map[string]interface{}{
 				"actionType": "end_turn",
-				"playerId":   "userA_game_end",
 			},
 		})
-		_ = ReadEvent(t, connA, 10*time.Second) // game.action 응답
-		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
-		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+		// A gets action success response
+		_ = ReadEvent(t, connA, 10*time.Second)
+		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
+		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
 
-		// User B도 잘못된 카드 플레이 시도
 		SendEvent(t, connB, WSEvent{
 			Type: "game.action",
 			Data: map[string]interface{}{
 				"actionType": "play_card",
-				"playerId":   "userB_game_end",
-				"cardIndex":  float64(0), // 첫 번째 카드를 잘못 플레이했다고 가정
+				"cardIndex":  float64(0), // Play the first card
 			},
 		})
-		_ = ReadEvent(t, connB, 10*time.Second) // game.action 응답
-		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
-		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+		// B gets action success response
+		_ = ReadEvent(t, connB, 10*time.Second)
+		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
+		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
 
-		// 턴 종료
 		SendEvent(t, connB, WSEvent{
 			Type: "game.action",
 			Data: map[string]interface{}{
 				"actionType": "end_turn",
-				"playerId":   "userB_game_end",
 			},
 		})
-		_ = ReadEvent(t, connB, 10*time.Second) // game.action 응답
-		_ = ReadEvent(t, connA, 10*time.Second) // game.sync 브로드캐스트
-		_ = ReadEvent(t, connB, 10*time.Second) // game.sync 브로드캐스트
+
+		_ = ReadEvent(t, connB, 10*time.Second)
+		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
+		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
 	}
 
-	time.Sleep(1 * time.Second) // 게임 종료 처리 대기
+	time.Sleep(1 * time.Second) // Give server time to register game over
 
-	// 7. game.ended 브로드캐스트 확인 (User A, User B 모두)
+	// 7. game.ended broadcast confirmation (User A, User B both)
 	gameEndedNotifA := ReadEvent(t, connA, 10*time.Second)
-	assert.Equal(t, "game.ended", gameEndedNotifA.Type)
+	assert.Equal(t, "game.ended", gameEndedNotifA.Type, "User A should receive 'game.ended' broadcast")
 	assert.NotNil(t, gameEndedNotifA.Data.(map[string]interface{})["roomId"])
 
 	gameEndedNotifB := ReadEvent(t, connB, 10*time.Second)
-	assert.Equal(t, "game.ended", gameEndedNotifB.Type)
+	assert.Equal(t, "game.ended", gameEndedNotifB.Type, "User B should receive 'game.ended' broadcast")
 	assert.NotNil(t, gameEndedNotifB.Data.(map[string]interface{})["roomId"])
 
-	// 8. 게임 상태 동기화 요청 (최종 상태 확인)
+	// 8. Game sync request (to verify final state)
 	SendEvent(t, connA, WSEvent{
 		Type: "game.sync",
 		Data: map[string]interface{}{"roomId": roomID},
 	})
 	finalGameSyncResA := ReadEvent(t, connA, 10*time.Second)
 	assert.Equal(t, "game.sync", finalGameSyncResA.Type)
+	assert.True(t, finalGameSyncResA.Success)
+	assert.Equal(t, "SUCCESS_GAME_SYNC", finalGameSyncResA.ErrorCode)
 
-	// 최종 상태 검증
-	finalGameStateA := finalGameSyncResA.Data.(map[string]interface{})
+	finalGameStateA := finalGameSyncResA.Data.(map[string]interface{})["gameState"].(map[string]interface{})
 	assert.True(t, finalGameStateA["gameOver"].(bool), "Game should be over")
-	assert.Equal(t, 0, int(finalGameStateA["missTokens"].(float64)), "Miss tokens should be 0 for game over")
+	assert.Equal(t, float64(0), finalGameStateA["missTokens"], "Miss tokens should be 0 for game over")
 
-	// 이 시점에서 fireworks 점수도 검증할 수 있습니다.
-	// 예를 들어, 0점 패배 시나리오라면:
-	// fireworksMap := finalGameStateA["fireworks"].(map[string]interface{})
-	// totalScore := 0
-	// for _, score := range fireworksMap {
-	// 	totalScore += int(score.(float64))
-	// }
-	// assert.Equal(t, 0, totalScore, "Total score should be 0 if all miss tokens are used")
+	fireworksMap := finalGameStateA["fireworks"].(map[string]interface{})
+	totalScore := 0
+	for _, score := range fireworksMap {
+		totalScore += int(score.(float64))
+	}
+	assert.Equal(t, 0, totalScore, "Total score should be 0 if game ends by all miss tokens used (assuming no successful plays)")
 }
