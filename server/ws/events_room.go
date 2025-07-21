@@ -5,6 +5,7 @@ import (
 	"fmt"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/domain/room"
+	"github.com/Ryeom/board-game/internal/game"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/internal/util"
@@ -277,9 +278,9 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 		}
 	}
 	if gmRaw, exists := event.Data["gameMode"]; exists {
-		if gmStr, ok := gmRaw.(string); ok && room.GameMode(gmStr) != r.GameMode {
+		if gmStr, ok := gmRaw.(string); ok && game.Mode(gmStr) != r.GameMode {
 			// TODO: 지원하는 게임 모드인지 추가 검증 필요
-			r.GameMode = room.GameMode(gmStr)
+			r.GameMode = game.Mode(gmStr)
 			updated = true
 		}
 	}

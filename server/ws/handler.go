@@ -3,9 +3,11 @@ package ws
 import (
 	"context"
 	"fmt"
+	"github.com/Ryeom/board-game/internal/game"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"net/http"
+	"time"
 )
 
 func dispatchSocketEvent(ctx context.Context, user *user.Session, event SocketEvent) {
@@ -86,52 +88,42 @@ var systemEvents = map[string]ExecutionEvent{
 
 func sendResult(u *user.Session, eventType string, data interface{}, resultMsgCode string) {
 	if u.Conn == nil {
-		// As per the previous discussion, u.Conn should be non-nil for active sessions.
-		// If it's nil here, it implies a logic error or a disconnected session.
-		// No need for connectionsMutex or activeConnections here.
 		return
 	}
-
-	msgData, found := resp.GetDefineCode(resultMsgCode, "ko")
-	if !found {
-		msgData.Message = fmt.Sprintf("Unknown success code: %s", resultMsgCode)
-		msgData.HttpStatus = http.StatusOK
-		msgData.Action = "Please contact support."
-	}
-
-	res := WebSocketResult{
-		Type:      eventType,
-		Data:      data,
-		Message:   msgData.Message,
-		Success:   true,
-		Code:      msgData.HttpStatus,
-		ErrorCode: resultMsgCode,
-		Action:    msgData.Action,
-	}
+	res := createWebSocketResult(eventType, data, resultMsgCode, "ko")
 	_ = u.Conn.WriteJSON(res)
 }
 func sendError(u *user.Session, resultMsgCode string) {
 	if u.Conn == nil {
 		return
 	}
+	res := createWebSocketResult("error", nil, resultMsgCode, "ko")
+	_ = u.Conn.WriteJSON(res)
+}
 
-	msgData, found := resp.GetDefineCode(resultMsgCode, "ko")
-	actionMessage := ""
-	if found {
-		actionMessage = msgData.Action
+func createWebSocketResult(eventType string, data interface{}, resultMsgCode, lang string) *WebSocketResult {
+	msgData, found := resp.GetDefineCode(resultMsgCode, lang)
+	if !found {
+		msgData.Message = fmt.Sprintf("Unknown success code: %s", resultMsgCode)
+		msgData.HttpStatus = http.StatusOK
+		msgData.Action = "Please contact support."
+	}
+	success := true
+	if eventType == "error" {
+		success = false
 	}
 
 	res := WebSocketResult{
-		Type:      "error",
-		Data:      nil,
+		Type:      eventType,
+		Data:      data,
 		Message:   msgData.Message,
-		Success:   false,
+		Success:   success,
 		Code:      msgData.HttpStatus,
 		ErrorCode: resultMsgCode,
-		Action:    actionMessage,
+		Action:    msgData.Action,
+		Timestamp: time.Now(),
 	}
-	_ = u.Conn.WriteJSON(res)
-
+	return &res
 }
 
 type WebSocketResult struct {
@@ -142,4 +134,15 @@ type WebSocketResult struct {
 	Code      int         `json:"code,omitempty"`      // HTTP Status Code와 유사 (에러 시)
 	ErrorCode string      `json:"errorCode,omitempty"` // 내부 에러 코드 (에러 시)
 	Action    string      `json:"action,omitempty"`
+	Timestamp time.Time   `json:"timestamp,omitempty"`
+}
+
+// GameStatePayload WebSocketResult.Data
+type GameStatePayload struct {
+	RoomId              string      `json:"roomId"`              // 현재 게임이 진행 중인 방의 ID
+	GameMode            game.Mode   `json:"gameMode"`            // 현재 게임의 모드 (예: "hanabi")
+	GameStatus          game.Status `json:"gameStatus"`          // 현재 게임의 상태
+	GameState           game.State  `json:"gameState"`           // 게임 엔진의 실제 상태 객체 (플레이어별 뷰가 적용된 상태)
+	CurrentTurnPlayerId string      `json:"currentTurnPlayerId"` // 현재 턴을 진행 중인 플레이어의 ID
+	Timestamp           time.Time   `json:"timestamp"`           // 이 데이터가 서버에서 생성된 시각
 }

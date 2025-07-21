@@ -89,7 +89,7 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 	var engine game.Engine
 
 	switch r.GameMode {
-	case room.GameModeHanabi:
+	case game.ModeHanabi:
 		hanabiEngine := hanabi.NewEngine(
 			playersInRoom,
 			func(eventName string, playerIDs []string, state any) {
@@ -102,22 +102,17 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 				for _, pID := range playerIDs {
 					playerView := fullHanabiState.GetPlayerView(pID)
 					payload := map[string]any{
-						"type": eventName,
-						"data": map[string]any{
-							"state": playerView,
-						},
-						"message": "게임 상태 업데이트",
-						"success": true,
-						"code":    200,
+						"state": playerView,
 					}
-					GlobalBroadcaster.SendToPlayer(pID, payload) // start:1 (게임에 활용하기 위한 데이터) to All (game.started.init)
+					res := createWebSocketResult(eventName, payload, resp.SuccessCodeGameSync, "ko")
+					GlobalBroadcaster.SendToPlayer(pID, res) // start:1 (게임에 활용하기 위한 데이터) to All (game.started.init)
 				}
 			},
 			setGameStateFunc,
 			getGameStateFunc,
 		)
 		engine = hanabiEngine
-	case room.GameMode6Nimmt:
+	case game.Mode6Nimmt:
 
 	default:
 		sendError(u, resp.ErrorCodeRoomUnsupportedGameMode)
@@ -133,16 +128,15 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, resp.ErrorCodeGameInfoNotSaved)
 		return
 	}
-
+	payload := GameStatePayload{
+		RoomId:     r.ID,
+		GameMode:   r.GameMode,
+		Timestamp:  time.Now(),
+		GameStatus: game.StatusPlaying,
+	}
+	res := createWebSocketResult("game.started", payload, resp.SuccessCodeGameSync, "ko")
 	// start:2 (host에 방생성 성공 알림) to host
-	sendResult(u, event.Type, map[string]any{
-		"type":       "game.started",
-		"roomId":     r.ID,
-		"gameMode":   r.GameMode,
-		"gameStatus": "started",
-		//"gameState":  r.IsGameStarted,
-		"startedAt": time.Now(),
-	}, resp.SuccessCodeGameStart)
+	sendResult(u, event.Type, res, resp.SuccessCodeGameStart)
 }
 
 // HandleGameEnd 게임 종료
@@ -188,17 +182,14 @@ func HandleGameEnd(ctx context.Context, u *user.Session, event SocketEvent) {
 			log.Logger.Errorf("HandleGameEnd - Failed to reset status for player %s: %v", playerSession.ID, saveErr)
 		}
 	}
-
-	GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
-		"type": "game.ended",
-		"data": map[string]string{
-			"roomId": r.ID,
-			"hostId": u.ID,
-		},
-		"message": "게임이 종료되었습니다!",
-		"success": true,
-		"code":    200,
-	})
+	payload := GameStatePayload{
+		RoomId:     r.ID,
+		GameMode:   r.GameMode,
+		Timestamp:  time.Now(),
+		GameStatus: game.StatusDefault,
+	}
+	res := createWebSocketResult("game.ended", payload, resp.SuccessCodeGameSync, "ko")
+	GlobalBroadcaster.BroadcastToRoom(r.ID, res)
 
 }
 
@@ -223,7 +214,7 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	var specificEngine game.Engine
 	switch r.GameMode {
-	case room.GameModeHanabi:
+	case game.ModeHanabi:
 		hanabiEng, typeOk := engine.(*hanabi.Engine)
 		if !typeOk {
 			log.Logger.Errorf("HandleGameAction - Mismatched engine type for room %s: expected hanabi.Engine", u.RoomID)
@@ -250,6 +241,7 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		Data: actionData,
 	}
 
+	// action:1 (actor가 생성한 이벤트의 반영) to ALL : game.action.sync
 	err := specificEngine.HandleEvent(gameEvent)
 	if err != nil {
 		log.Logger.Errorf("HandleGameAction - Game engine error for room %s, action %s: %v", u.RoomID, gameEvent.Type, err)
@@ -257,10 +249,15 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	sendResult(u, event.Type, map[string]any{
-		"status": "action processed",
-		"action": gameEvent.Type,
-	}, resp.SuccessCodeGameAction)
+	payload := GameStatePayload{
+		RoomId:     r.ID,
+		GameMode:   r.GameMode,
+		Timestamp:  time.Now(),
+		GameStatus: game.StatusPlaying,
+	}
+	res := createWebSocketResult("game.action.succeeded", payload, resp.SuccessCodeGameSync, "ko")
+	// action:2 (actor가 생성한 이벤트 성공 알림) to actor
+	sendResult(u, event.Type, res, resp.SuccessCodeGameStart)
 }
 
 // HandleGameSync 게임 상태 동기화 (클라이언트가 명시적으로 요청 시)
@@ -284,7 +281,7 @@ func HandleGameSync(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	var currentGameState interface{}
 	switch r.GameMode {
-	case room.GameModeHanabi:
+	case game.ModeHanabi:
 		hanabiEng, typeOk := engine.(*hanabi.Engine)
 		if !typeOk {
 			log.Logger.Errorf("HandleGameSync - Mismatched engine type for room %s: expected hanabi.Engine", u.RoomID)
@@ -316,11 +313,11 @@ func HandleGameInfo(ctx context.Context, user *user.Session, event SocketEvent) 
 		return
 	}
 
-	gameMode := room.GameMode(gameModeStr)
+	gameMode := game.Mode(gameModeStr)
 	var gameInfo map[string]any
 
 	switch gameMode {
-	case room.GameModeHanabi:
+	case game.ModeHanabi:
 		gameInfo = map[string]any{
 			"name":        "Hanabi",
 			"description": "하나비는 협력 카드 게임입니다. 플레이어들은 불꽃놀이를 완성하기 위해 카드 정보를 공유하며 색깔별로 1부터 5까지 순서대로 카드를 내야 합니다. 하지만 자신의 패는 볼 수 없습니다!",

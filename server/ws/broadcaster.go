@@ -13,8 +13,8 @@ import (
 )
 
 type Broadcaster interface {
-	BroadcastToRoom(roomID string, payload map[string]any) error
-	SendToPlayer(playerID string, payload map[string]any) error
+	BroadcastToRoom(roomID string, payload interface{}) error
+	SendToPlayer(playerID string, payload interface{}) error
 	SetSessionGetter(getter func(socketID string) (*user.Session, bool))
 }
 
@@ -46,7 +46,7 @@ func (rb *RedisBroadcaster) SetSessionGetter(getter func(socketID string) (*user
 	rb.sessionGetter = getter
 }
 
-func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload map[string]any) error {
+func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload interface{}) error {
 	msg := map[string]any{
 		"roomId": roomID,
 		"data":   payload,
@@ -59,7 +59,7 @@ func (rb *RedisBroadcaster) BroadcastToRoom(roomID string, payload map[string]an
 	return redisutil.Client[redisutil.RedisTargetPubSub].Publish(rb.ctx, "broadcast:room", b).Err()
 }
 
-func (rb *RedisBroadcaster) SendToPlayer(playerID string, payload map[string]any) error {
+func (rb *RedisBroadcaster) SendToPlayer(playerID string, payload interface{}) error {
 	if rb.sessionGetter == nil {
 		return fmt.Errorf("Broadcaster session getter not set. Cannot send to specific player.")
 	}

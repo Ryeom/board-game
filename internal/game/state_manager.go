@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
-	"github.com/Ryeom/board-game/internal/domain/room"
 	"github.com/Ryeom/board-game/log"
 	"time"
 )
 
-func getGameStateKey(gameMode room.GameMode, roomID string) string {
+func getGameStateKey(gameMode Mode, roomID string) string {
 	return fmt.Sprintf("game:%s:state:%s", gameMode, roomID)
 }
 
-func SaveGameState(ctx context.Context, gameMode room.GameMode, roomID string, state interface{}) error {
+func SaveGameState(ctx context.Context, gameMode Mode, roomID string, state interface{}) error {
 	key := getGameStateKey(gameMode, roomID)
 
 	err := redisutil.SaveJSON(redisutil.RedisTargetGame, key, state, 24*time.Hour)
@@ -25,7 +24,7 @@ func SaveGameState(ctx context.Context, gameMode room.GameMode, roomID string, s
 	return nil
 }
 
-func GetGameState(ctx context.Context, gameMode room.GameMode, roomID string, dest interface{}) error {
+func GetGameState(ctx context.Context, gameMode Mode, roomID string, dest interface{}) error {
 	key := getGameStateKey(gameMode, roomID)
 	found := redisutil.GetJSON(redisutil.RedisTargetGame, key, dest)
 	if !found {
@@ -35,7 +34,7 @@ func GetGameState(ctx context.Context, gameMode room.GameMode, roomID string, de
 	return nil
 }
 
-func DeleteGameState(ctx context.Context, gameMode room.GameMode, roomID string) error {
+func DeleteGameState(ctx context.Context, gameMode Mode, roomID string) error {
 	key := getGameStateKey(gameMode, roomID)
 	err := redisutil.Delete(redisutil.RedisTargetGame, key)
 	if err != nil {

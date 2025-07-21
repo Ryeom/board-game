@@ -5,3 +5,6 @@ type Engine interface {
 	HandleEvent(event any) error
 	EndGame()
 }
+
+type State interface {
+}

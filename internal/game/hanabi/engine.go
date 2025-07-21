@@ -50,11 +50,12 @@ func (e *Engine) StartGame() {
 	if err := e.SetGameState(state); err != nil {
 		fmt.Printf("[Hanabi] Error saving game state on start: %v\n", err)
 	}
-	//e.Broadcast("", e.Players, state)
+	e.Broadcast("game.started.init", e.Players, e.CurrentState)
 }
 
 func (e *Engine) EndGame() {
 
+	e.Broadcast("game.end", e.Players, e.CurrentState)
 }
 func (e *Engine) HandleEvent(event any) error {
 	cast, ok := event.(Event)
@@ -85,7 +86,7 @@ func (e *Engine) HandleEvent(event any) error {
 			fmt.Printf("[Hanabi] Error saving game state after event %s: %v\n", cast.Type, saveErr)
 		}
 	}
-	// e.Broadcast("",e.Players, e.CurrentState)
+	e.Broadcast("game.action.sync", e.Players, e.CurrentState)
 	return nil
 }
 
