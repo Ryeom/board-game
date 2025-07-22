@@ -50,7 +50,7 @@ func (e *Engine) StartGame() {
 	if err := e.SetGameState(state); err != nil {
 		fmt.Printf("[Hanabi] Error saving game state on start: %v\n", err)
 	}
-	e.Broadcast("game.started.init", e.Players, e.CurrentState)
+	e.Broadcast("game.start.init", e.Players, e.CurrentState)
 }
 
 func (e *Engine) EndGame() {
