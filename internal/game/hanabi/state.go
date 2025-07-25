@@ -114,3 +114,27 @@ func (s *State) GetPlayerView(playerID string) *State {
 	}
 	return &playerView
 }
+
+// GetCardsRemainingInDeck 현재 덱에 남은 카드의 수 반환
+func (s *State) GetCardsRemainingInDeck() int {
+	return len(s.Deck)
+}
+
+// GetCurrentScore 불꽃놀이 완성 점수 (ending에 영향)
+func (s *State) GetCurrentScore() int {
+	score := 0
+	for _, num := range s.Fireworks {
+		score += num
+	}
+	return score
+}
+
+// GetRemainingHintTokens 현재 남은 힌트 수 반환
+func (s *State) GetRemainingHintTokens() int {
+	return s.HintTokens
+}
+
+// IsGameOver 게임이 종료 조건을 충족했는지 여부 반환
+func (s *State) IsGameOver() bool {
+	return s.GameOver
+}
