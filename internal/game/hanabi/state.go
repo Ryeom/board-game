@@ -1,9 +1,5 @@
 package hanabi
 
-import (
-	"time"
-)
-
 type State struct {
 	Fireworks   map[Color]int      `json:"fireworks"`
 	HintTokens  int                `json:"hintTokens"`
@@ -33,6 +29,7 @@ func NewState(deck []*Card) *State {
 	}
 }
 
+// DealInitialCards 게임 시작 시 플레이어에 초기 카드 분배
 func DealInitialCards(players []string, deck *[]*Card, hands map[string][]*Card) {
 	cardCount := 5
 	if len(players) >= 4 {
@@ -88,10 +85,6 @@ func shuffle(cards []*Card) {
 		j := randInt(0, i+1)
 		cards[i], cards[j] = cards[j], cards[i]
 	}
-}
-
-func randInt(min, max int) int {
-	return min + int(time.Now().UnixNano())%(max-min)
 }
 
 // GetPlayerView 특정 플레이어의 시점에서 본 게임 상태를 반환 (자신의 카드는 보이지 않아야함)
