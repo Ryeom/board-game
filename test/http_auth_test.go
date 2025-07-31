@@ -204,3 +204,61 @@ func TestSignUpDuplicateEmail(t *testing.T) {
 	assert.Equal(t, response.ErrorCodeAuthEmailDuplicate, result2.Error.Code, "이메일 중복 에러 코드를 확인합니다.") //
 	assert.Contains(t, result2.Message, "이미 존재하는 이메일입니다.", "이메일 중복 메시지를 확인합니다.")                      //
 }
+
+// TestAccessProtectedAPIWithInvalidToken 유효하지 않은 토큰으로 보호된 API 접근 시도 테스트
+func TestAccessProtectedAPIWithInvalidToken(t *testing.T) {
+	// 1. 테스트 서버 시작 및 리소스 정리
+	ts, _ := startTestServer(t)
+	defer ts.Close()
+
+	// 2. 보호된 API 엔드포인트
+	profileURL := fmt.Sprintf("%s/board-game/api/user/profile", ts.URL)
+
+	tests := []struct {
+		name         string
+		authHeader   string // Authorization 헤더 값
+		expectedCode string // 예상되는 오류 코드
+	}{
+		{
+			name:         "토큰 없음",
+			authHeader:   "",                                 // Authorization 헤더 없음
+			expectedCode: response.ErrorCodeAuthInvalidToken, //
+		},
+		{
+			name:         "유효하지 않은 형식의 토큰",
+			authHeader:   "Bearer invalid-jwt-token",         // 잘못된 JWT 형식
+			expectedCode: response.ErrorCodeAuthInvalidToken, //
+		},
+		{
+			name:         "만료된 토큰",                                                                                                                // 실제 만료된 토큰을 생성하기는 어렵지만, 유효하지 않은 형식으로 대체하여 테스트
+			authHeader:   "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NDAwMDAwMDAsInVzZXJfaWQiOiJzb21lVXNlcklkIn0.SignatureMismatch", // exp가 과거인 토큰 (서명 불일치로도 처리될 수 있음)
+			expectedCode: response.ErrorCodeAuthInvalidToken,                                                                                      //
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, profileURL, nil)
+			assert.NoError(t, err)
+
+			if tc.authHeader != "" {
+				req.Header.Set("Authorization", tc.authHeader)
+			}
+
+			resp, err := ts.Client().Do(req)
+			assert.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "예상치 못한 HTTP 상태 코드") //
+
+			var result response.HttpResult
+			err = json.NewDecoder(resp.Body).Decode(&result)
+			assert.NoError(t, err)
+
+			assert.Equal(t, "error", result.Status, "응답 상태는 'error'여야 합니다.")
+			assert.NotNil(t, result.Error, "Error 필드는 nil이 아니어야 합니다.")
+			assert.Equal(t, tc.expectedCode, result.Error.Code, "예상되는 오류 코드가 반환되어야 합니다.")           //
+			assert.Contains(t, result.Error.Message, "유효하지 않은 인증 토큰입니다.", "올바른 오류 메시지가 반환되어야 합니다.") //
+		})
+	}
+}
