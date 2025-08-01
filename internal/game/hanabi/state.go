@@ -1,5 +1,10 @@
 package hanabi
 
+import (
+	"math/rand"
+	"time"
+)
+
 type State struct {
 	Fireworks   map[Color]int      `json:"fireworks"`
 	HintTokens  int                `json:"hintTokens"`
@@ -11,6 +16,12 @@ type State struct {
 	GameOver    bool               `json:"gameOver"`
 	LastPlayer  int                `json:"lastPlayer"`
 	PlayerHands map[string][]*Card `json:"playerHands"` // player ID → cards
+}
+
+var seededRand *rand.Rand
+
+func init() {
+	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
 func NewState(deck []*Card) *State {
@@ -81,10 +92,9 @@ func GenerateDeck() []*Card {
 }
 
 func shuffle(cards []*Card) {
-	for i := len(cards) - 1; i > 0; i-- {
-		j := randInt(0, i+1)
+	seededRand.Shuffle(len(cards), func(i, j int) {
 		cards[i], cards[j] = cards[j], cards[i]
-	}
+	})
 }
 
 // GetPlayerView 특정 플레이어의 시점에서 본 게임 상태를 반환 (자신의 카드는 보이지 않아야함)
