@@ -60,7 +60,7 @@ func SignUp(c echo.Context) error {
 		))
 	}
 	if existingUser != nil {
-		return c.JSON(http.StatusNotFound, resp.Fail(resp.ErrorCodeAuthEmailDuplicate, lang,
+		return c.JSON(http.StatusConflict, resp.Fail(resp.ErrorCodeAuthEmailDuplicate, lang,
 			resp.ErrorDetail{},
 		))
 	}
