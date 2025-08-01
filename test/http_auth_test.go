@@ -262,3 +262,91 @@ func TestAccessProtectedAPIWithInvalidToken(t *testing.T) {
 		})
 	}
 }
+
+// TestSuccessfulLoginAndProtectedAPIAccess 성공적인 로그인 및 보호된 API 접근 테스트
+func TestSuccessfulLoginAndProtectedAPIAccess(t *testing.T) {
+	// 1. 테스트 서버 시작 및 리소스 정리
+	ts, _ := startTestServer(t)
+	defer ts.Close()
+
+	// 2. 새로운 사용자 회원가입
+	uniqueEmail := fmt.Sprintf("success_%d@example.com", time.Now().UnixNano())
+	password := "testpassword123"
+	nickname := "SuccessTester"
+
+	// 회원가입 요청
+	reqBodySignUp := map[string]string{
+		"email":    uniqueEmail,
+		"password": password,
+		"nickname": nickname,
+	}
+	jsonBodySignUp, _ := json.Marshal(reqBodySignUp)
+	reqSignUp := httptest.NewRequest(http.MethodPost, "/board-game/auth/signup", bytes.NewBuffer(jsonBodySignUp))
+	reqSignUp.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	recSignUp := httptest.NewRecorder()
+	e := echo.New()
+	e.Validator = util.NewValidator()
+	cSignUp := e.NewContext(reqSignUp, recSignUp)
+
+	err := appHttp.SignUp(cSignUp)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, recSignUp.Code)
+
+	// 3. 로그인 시도
+	reqBodyLogin := map[string]string{
+		"email":    uniqueEmail,
+		"password": password,
+	}
+	jsonBodyLogin, _ := json.Marshal(reqBodyLogin)
+	reqLogin := httptest.NewRequest(http.MethodPost, "/board-game/auth/login", bytes.NewBuffer(jsonBodyLogin))
+	reqLogin.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	recLogin := httptest.NewRecorder()
+	cLogin := e.NewContext(reqLogin, recLogin)
+
+	err = appHttp.Login(cLogin)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, recLogin.Code)
+
+	var loginResult response.HttpResult
+	err = json.Unmarshal(recLogin.Body.Bytes(), &loginResult)
+	assert.NoError(t, err)
+	assert.Equal(t, "success", loginResult.Status)
+
+	// 로그인 응답에서 JWT 토큰 추출
+	data, ok := loginResult.Data.(map[string]interface{})
+	assert.True(t, ok)
+	token, ok := data["token"].(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, token)
+
+	userID, ok := data["user_id"].(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, userID)
+
+	// 4. 추출한 토큰으로 보호된 API 접근
+	protectedURL := fmt.Sprintf("%s/board-game/api/user/profile", ts.URL)
+	reqProtected, err := http.NewRequest(http.MethodGet, protectedURL, nil)
+	assert.NoError(t, err)
+
+	reqProtected.Header.Set("Authorization", "Bearer "+token)
+
+	respProtected, err := ts.Client().Do(reqProtected)
+	assert.NoError(t, err)
+	defer respProtected.Body.Close()
+
+	// 5. 응답 검증 (성공)
+	assert.Equal(t, http.StatusOK, respProtected.StatusCode)
+
+	var profileResult response.HttpResult
+	err = json.NewDecoder(respProtected.Body).Decode(&profileResult)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "success", profileResult.Status)
+	assert.Equal(t, response.SuccessCodeUserProfileGet, profileResult.Code) //
+
+	profileData, ok := profileResult.Data.(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, uniqueEmail, profileData["email"])
+	assert.Equal(t, nickname, profileData["nickname"])
+	assert.Equal(t, userID, profileData["userId"])
+}
