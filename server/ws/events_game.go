@@ -266,7 +266,7 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		Timestamp:  time.Now(),
 		GameStatus: game.StatusPlaying,
 	}
-	res := createWebSocketResult("game.action.succeeded", payload, resp.SuccessCodeGameSync, "ko")
+	res := createWebSocketResult("game.action.succeeded", payload, resp.SuccessCodeGameAction, "ko")
 	// action:2 (actor가 생성한 이벤트 성공 알림) to actor
 	sendResult(u, event.Type, res, resp.SuccessCodeGameStart)
 }
@@ -310,7 +310,7 @@ func HandleGameSync(ctx context.Context, u *user.Session, event SocketEvent) {
 		"roomId":    u.RoomID,
 		"gameMode":  r.GameMode,
 		"gameState": currentGameState,
-	}, resp.SuccessCodeGameSync)
+	}, resp.SuccessCodeGameAction)
 }
 
 func HandleGamePause(ctx context.Context, user *user.Session, event SocketEvent) {
