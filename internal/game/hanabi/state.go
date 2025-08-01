@@ -107,9 +107,14 @@ func (s *State) GetPlayerView(playerID string) *State {
 		for i, card := range hand {
 			copiedCard := *card
 			if pID == playerID {
-				copiedCard.Color = ""
-				copiedCard.Number = 0
-				// ColorKnown, NumberKnown : 힌트가 있으면 유지하기
+				// 힌트 정보가 없으면 카드 정보 삭제
+				// 힌트를 받은 카드(ColorKnown 또는 NumberKnown이 true)는 정보를 유지
+				if !copiedCard.ColorKnown {
+					copiedCard.Color = ""
+				}
+				if !copiedCard.NumberKnown {
+					copiedCard.Number = 0
+				}
 			}
 			copiedHand[i] = &copiedCard
 		}
