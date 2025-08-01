@@ -249,6 +249,17 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
+	// 게임이 종료되었는지 확인하고, 종료되었으면 `HandleGameEnd`를 호출
+	if specificEngine.IsGameOver() {
+		log.Logger.Infof("Game in room %s ended automatically. Calling HandleGameEnd.", r.ID)
+		gameEndEvent := SocketEvent{
+			Type: "game.end",
+			Data: map[string]interface{}{"roomId": r.ID},
+		}
+		HandleGameEnd(ctx, u, gameEndEvent)
+		return
+	}
+
 	payload := GameStatePayload{
 		RoomId:     r.ID,
 		GameMode:   r.GameMode,

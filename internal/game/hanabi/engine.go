@@ -29,6 +29,12 @@ func NewEngine(players []string, broadcast BroadcastFunc, setGameState SetGameSt
 		GetGameState: getGameState,
 	}
 }
+func (e *Engine) IsGameOver() bool {
+	if e.CurrentState == nil {
+		return false
+	}
+	return e.CurrentState.IsGameOver()
+}
 
 func (e *Engine) StartGame() {
 	fmt.Println("[Hanabi] StartGame")
@@ -79,6 +85,11 @@ func (e *Engine) HandleEvent(event any) error {
 
 	if err != nil {
 		return err
+	}
+
+	// 추가된 로직: 게임 종료 조건을 확인합니다.
+	if e.CurrentState.IsGameOver() {
+		e.EndGame()
 	}
 
 	if e.CurrentState != nil {
