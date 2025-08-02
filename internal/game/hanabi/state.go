@@ -146,3 +146,30 @@ func (s *State) GetRemainingHintTokens() int {
 func (s *State) IsGameOver() bool {
 	return s.GameOver
 }
+
+// GetTurnsRemaining 게임이 몇 턴 후에 끝나는지 반환
+func (s *State) GetTurnsRemaining(numPlayers int) int {
+	if s.GameOver {
+		return 0
+	}
+	if len(s.Deck) > 0 { // deck 남아있는 경우
+		return -1
+	}
+
+	if s.LastPlayer == -1 {
+		return numPlayers
+	}
+	turnsLeft := (s.LastPlayer + numPlayers - s.TurnIndex) % numPlayers
+	if turnsLeft == 0 && s.TurnIndex != s.LastPlayer {
+		return numPlayers
+	} else if turnsLeft == 0 && s.TurnIndex == s.LastPlayer {
+		return 1
+	}
+	// current -> 라스트플레이어로 전환 = (라스트플레이어 - 턴인덱스 + numPlayers) % numPlayers
+	// + 1 하기
+	remaining := (s.LastPlayer - s.TurnIndex + numPlayers) % numPlayers
+	if remaining == 0 && s.TurnIndex == s.LastPlayer {
+		return 1
+	}
+	return remaining + 1
+}
