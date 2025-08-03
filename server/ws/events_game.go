@@ -317,6 +317,7 @@ func HandleGamePause(ctx context.Context, user *user.Session, event SocketEvent)
 	sendError(user, resp.ErrorCodeGameFeatureNotImplemented)
 }
 
+// HandleGameInfo 현재 설정된 게임 모드 정보 (게임방법 조회)
 func HandleGameInfo(ctx context.Context, user *user.Session, event SocketEvent) {
 	gameModeStr, ok := event.Data["gameMode"].(string)
 	if !ok || gameModeStr == "" {
