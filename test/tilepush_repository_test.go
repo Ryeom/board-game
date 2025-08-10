@@ -96,17 +96,23 @@ func TestGetTileSetByName(t *testing.T) {
 func TestGetRandomTileSet(t *testing.T) {
 	ctx := context.Background()
 	err := tilepush.LoadAllTileSetsFromDB(ctx)
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(t, err, "Failed to load tile sets before TestGetRandomTileSet")
+
 	foundSets := make(map[string]bool)
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 100; i++ {
 		ts, err := tilepush.GetRandomTileSet()
 		assert.NoError(t, err)
 		assert.NotNil(t, ts)
+		t.Logf("ts: %s", ts.Name)
 		foundSets[ts.Name] = true
 	}
 
+	expectedCount := 22
+	assert.Len(t, foundSets, expectedCount, "Expected to find all seeded tile sets")
+
+	// 특정 콘셉트들이 포함되어 있는지 확인
 	assert.True(t, foundSets["animals"])
 	assert.True(t, foundSets["fruits"])
+	assert.True(t, foundSets["concept_1"])
+	assert.True(t, foundSets["concept_20"])
 }
