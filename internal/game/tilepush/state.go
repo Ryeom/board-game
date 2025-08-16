@@ -13,14 +13,15 @@ type Board [][]Tile
 
 type State struct {
 	Board               Board             `json:"board"`
-	Rows                int               `json:"rows"`                // 보드의 행 수
-	Columns             int               `json:"columns"`             // 보드의 열 수
-	PlayerHands         map[string][]Tile `json:"playerHands"`         // 플레이어 손패 (타일 푸시 게임에서는 사용하지 않을 수 있습니다)
-	CurrentTurnPlayerID string            `json:"currentTurnPlayerId"` // 현재 턴 플레이어 ID
-	ActiveTileSet       *tilepush.TileSet `json:"activeTileSet"`       // 현재 게임에 사용 중인 타일 세트 정보
+	Rows                int               `json:"rows"`
+	Columns             int               `json:"columns"`
+	PlayerHands         map[string][]Tile `json:"playerHands"`
+	CurrentTurnPlayerID string            `json:"currentTurnPlayerId"`
+	ActiveTileSet       *tilepush.TileSet `json:"activeTileSet"`
 	GameOver            bool              `json:"gameOver"`
-	Deck                []Tile            `json:"deck"`        // 게임에 사용될 남은 타일 덱
-	DiscardPile         []Tile            `json:"discardPile"` // 버려진 타일 더미 (게임 종료 조건 등에 활용 가능)
+	Deck                []Tile            `json:"deck"`
+	DiscardPile         []Tile            `json:"discardPile"`
+	PlayerTargets       map[string]Tile   `json:"playerTargets"` // 각 플레이어의 목표 타일 (어떤 타일을 모으는지)
 }
 
 var seededRand *rand.Rand
@@ -30,8 +31,6 @@ func init() {
 }
 
 func NewState(players []string, tileSet *tilepush.TileSet, rows, columns int) *State {
-	// max row 8, colums 4~5
-	// 1. 게임 보드 초기화
 	board := make(Board, rows)
 	for r := range board {
 		board[r] = make([]Tile, columns)
@@ -40,7 +39,6 @@ func NewState(players []string, tileSet *tilepush.TileSet, rows, columns int) *S
 		}
 	}
 
-	// 2. 덱 생성 및 "반만 섞기" 로직 적용
 	var deck []Tile
 	if tileSet != nil {
 		const numCopiesPerTileType = 5
@@ -50,24 +48,23 @@ func NewState(players []string, tileSet *tilepush.TileSet, rows, columns int) *S
 			}
 		}
 	}
+	shuffleTiles(deck)
 
-	deckLen := len(deck)
-	if deckLen > 1 {
-		halfPoint := deckLen / 2
-
-		seededRand.Shuffle(halfPoint, func(i, j int) {
-			deck[i], deck[j] = deck[j], deck[i]
-		})
-
-		seededRand.Shuffle(deckLen-halfPoint, func(i, j int) {
-			deck[halfPoint+i], deck[halfPoint+j] = deck[halfPoint+j], deck[halfPoint+i]
-		})
+	playerTargets := make(map[string]Tile)
+	if len(players) >= 2 && tileSet != nil && len(tileSet.Tiles) >= 2 {
+		playerTargets[players[0]] = tileSet.Tiles[0]
+		playerTargets[players[1]] = tileSet.Tiles[1]
 	}
 
-	// 3. 플레이어 손패 초기화 (타일 푸시 규칙에 따라 손패가 없을 수도 있습니다)
-	playerHands := make(map[string][]Tile)
+	for c := 0; c < columns; c++ {
+		if len(deck) > 0 {
+			board[rows-1][c] = deck[0]
+			deck = deck[1:]
+		} else {
+			break
+		}
+	}
 
-	// 4. 초기 턴 플레이어 설정
 	currentTurnPlayerID := ""
 	if len(players) > 0 {
 		currentTurnPlayerID = players[0]
@@ -77,17 +74,24 @@ func NewState(players []string, tileSet *tilepush.TileSet, rows, columns int) *S
 		Board:               board,
 		Rows:                rows,
 		Columns:             columns,
-		PlayerHands:         playerHands,
+		PlayerHands:         make(map[string][]Tile),
 		CurrentTurnPlayerID: currentTurnPlayerID,
 		ActiveTileSet:       tileSet,
 		GameOver:            false,
 		Deck:                deck,
 		DiscardPile:         []Tile{},
+		PlayerTargets:       playerTargets,
 	}
 }
 
+func shuffleTiles(tiles []Tile) {
+	seededRand.Shuffle(len(tiles), func(i, j int) {
+		tiles[i], tiles[j] = tiles[j], tiles[i]
+	})
+}
+
 func (s *State) IsGameOver() bool {
-	return s.GameOver || len(s.Deck) == 0 // 덱이 비면 게임 종료로 간주 (기본)
+	return s.GameOver || len(s.Deck) == 0
 }
 
 func (s *State) GetPlayerView(playerID string) *State {
