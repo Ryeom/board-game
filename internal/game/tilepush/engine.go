@@ -35,6 +35,7 @@ func NewEngine(players []string, broadcast BroadcastFunc, setGameState SetGameSt
 
 func (e *Engine) StartGame() {
 	fmt.Println("[TilePush] StartGame")
+
 	state := e.GetGameState()
 	if state == nil {
 		tileSet, err := tilepush.GetRandomTileSet()
@@ -43,7 +44,7 @@ func (e *Engine) StartGame() {
 			return
 		}
 
-		state = NewState(e.Players, tileSet, 5, 5)
+		state = NewState(e.Players, tileSet, 5, 5) // 예시: 5x5 보드
 		e.CurrentState = state
 	} else {
 		fmt.Println("[TilePush] Resuming game with existing state.")
@@ -87,7 +88,6 @@ func (e *Engine) HandleEvent(event any) error {
 	if saveErr := e.SetGameState(e.CurrentState); saveErr != nil {
 		fmt.Printf("[TilePush] Error saving game state after event %s: %v\n", cast.Type, saveErr)
 	}
-
 	e.Broadcast("game.action.sync", e.Players, e.CurrentState)
 
 	return nil
@@ -111,38 +111,42 @@ func (e *Engine) handleTilePush(data map[string]any) error {
 	drawnTile := e.CurrentState.Deck[0]
 	e.CurrentState.Deck = e.CurrentState.Deck[1:]
 
-	// 3. 놓을 위치 (행/열) 및 유효성 검증
-	rowFloat, rowOk := data["row"].(float64)
 	colFloat, colOk := data["column"].(float64)
-	if !rowOk || !colOk {
-		return errors.New("invalid row or column index")
+	if !colOk {
+		return errors.New("invalid column index")
 	}
-	row := int(rowFloat)
 	col := int(colFloat)
 
-	if row < 0 || row >= e.CurrentState.Rows || col < 0 || col >= e.CurrentState.Columns {
-		return errors.New("position out of board bounds")
+	if col < 0 || col >= e.CurrentState.Columns {
+		return errors.New("column index out of board bounds")
 	}
 
-	// 4. 보드에 타일 배치 및 밀려나온 타일 처리
+	// 4. 타일 삽입 위치 (row) 결정 및 유효성 검증
+	insertRowFloat, insertRowOk := data["row"].(float64)
+	if !insertRowOk {
+		return errors.New("missing insert row index")
+	}
+	insertRow := int(insertRowFloat)
+
+	if insertRow < 0 || insertRow >= e.CurrentState.Rows {
+		return errors.New("insert row index out of board bounds")
+	}
+	// 5. 보드에 타일 배치 및 밀려나온 타일 처리
 	var pushedOutTile Tile
-	if col >= 0 && col < e.CurrentState.Columns {
+	if e.CurrentState.Board[e.CurrentState.Rows-1][col].Shape != "" {
 		pushedOutTile = e.CurrentState.Board[e.CurrentState.Rows-1][col]
-
-		for rIdx := e.CurrentState.Rows - 1; rIdx > 0; rIdx-- {
-			e.CurrentState.Board[rIdx][col] = e.CurrentState.Board[rIdx-1][col]
-		}
-		e.CurrentState.Board[0][col] = drawnTile
-	} else {
-		return errors.New("invalid column for tile push operation")
 	}
 
-	// 밀려나온 타일을 버려진 타일 더미에 추가 (또는 다른 규칙 적용)
+	for rIdx := e.CurrentState.Rows - 1; rIdx > insertRow; rIdx-- {
+		e.CurrentState.Board[rIdx][col] = e.CurrentState.Board[rIdx-1][col]
+	}
+	e.CurrentState.Board[insertRow][col] = drawnTile
+
 	if pushedOutTile.Shape != "" {
 		e.CurrentState.DiscardPile = append(e.CurrentState.DiscardPile, pushedOutTile)
 	}
 
-	// 5. 턴 전환 로직: 밀어 넣은 타일의 종류와 밀려나온 타일의 종류를 비교
+	// 6. 턴 전환 로직: 밀어 넣은 타일의 종류와 밀려나온 타일의 종류를 비교
 	if drawnTile.Shape == pushedOutTile.Shape {
 		fmt.Printf("[TilePush] Player %s pushed a matching tile (%s). Turn stays with %s.\n", playerID, drawnTile.Shape, playerID)
 	} else {
@@ -162,7 +166,7 @@ func (e *Engine) handleTilePush(data map[string]any) error {
 		}
 	}
 
-	fmt.Printf("[TilePush] Player %s pushed tile %s into (%d, %d). Pushed out: %s\n", playerID, drawnTile.Shape, row, col, pushedOutTile.Shape)
+	fmt.Printf("[TilePush] Player %s pushed tile %s into (%d, %d). Pushed out: %s\n", playerID, drawnTile.Shape, insertRow, col, pushedOutTile.Shape)
 	return nil
 }
 
@@ -171,7 +175,7 @@ func (e *Engine) IsGameOver() bool {
 		return false
 	}
 	if len(e.CurrentState.Deck) == 0 {
-		e.CurrentState.GameOver = true
+		e.CurrentState.GameOver = true // 덱이 비면 게임 종료로 설정
 	}
 	return e.CurrentState.GameOver
 }
