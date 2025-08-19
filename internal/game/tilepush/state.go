@@ -21,7 +21,9 @@ type State struct {
 	GameOver            bool              `json:"gameOver"`
 	Deck                []Tile            `json:"deck"`
 	DiscardPile         []Tile            `json:"discardPile"`
-	PlayerTargets       map[string]Tile   `json:"playerTargets"` // 각 플레이어의 목표 타일 (어떤 타일을 모으는지)
+	PlayerTargets       map[string]Tile   `json:"playerTargets"`      // 각 플레이어의 목표 타일 (어떤 타일을 모으는지)
+	WinnerID            string            `json:"winnerId,omitempty"` // 승리한 플레이어 ID (게임 종료 시 설정)
+
 }
 
 var seededRand *rand.Rand
@@ -91,7 +93,63 @@ func shuffleTiles(tiles []Tile) {
 }
 
 func (s *State) IsGameOver() bool {
-	return s.GameOver || len(s.Deck) == 0
+	// 1. 덱이 비었을 때 게임 종료
+	if len(s.Deck) == 0 {
+		s.GameOver = true
+		return true
+	}
+
+	// 2. 플레이어 승리 조건 확인
+	for playerID, targetTile := range s.PlayerTargets {
+		for c := 0; c < s.Columns; c++ {
+			isColumnFullOfTarget := true
+			for r := 0; r < s.Rows; r++ {
+				if s.Board[r][c].Shape != targetTile.Shape {
+					isColumnFullOfTarget = false
+					break
+				}
+			}
+			if isColumnFullOfTarget {
+				s.GameOver = true
+				s.WinnerID = playerID
+				return true
+			}
+		}
+		for r := 0; r < s.Rows; r++ {
+			isRowFullOfTarget := true
+			for c := 0; c < s.Columns; c++ {
+				if s.Board[r][c].Shape != targetTile.Shape {
+					isRowFullOfTarget = false
+					break
+				}
+			}
+			if isRowFullOfTarget {
+				s.GameOver = true
+				s.WinnerID = playerID
+				return true
+			}
+		}
+	}
+
+	// 3. 보드판이 가득 찼을 때 (더 이상 놓을 곳이 없을 때) 게임 종료
+	isBoardFull := true
+	for r := 0; r < s.Rows; r++ {
+		for c := 0; c < s.Columns; c++ {
+			if s.Board[r][c].Shape == "" {
+				isBoardFull = false
+				break
+			}
+		}
+		if !isBoardFull {
+			break
+		}
+	}
+	if isBoardFull {
+		s.GameOver = true
+		return true
+	}
+
+	return s.GameOver
 }
 
 func (s *State) GetPlayerView(playerID string) *State {
