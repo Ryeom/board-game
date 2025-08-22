@@ -33,7 +33,7 @@ func NewEngine(players []string, broadcast BroadcastFunc, setGameState SetGameSt
 	}
 }
 
-func (e *Engine) StartGame() {
+func (e *Engine) StartGame(rows, columns int) {
 	fmt.Println("[TilePush] StartGame")
 
 	state := e.GetGameState()
@@ -44,13 +44,13 @@ func (e *Engine) StartGame() {
 			return
 		}
 
-		state = NewState(e.Players, tileSet, 5, 5) // 예시: 5x5 보드
+		state = NewState(e.Players, tileSet, rows, columns)
 		e.CurrentState = state
 	} else {
 		fmt.Println("[TilePush] Resuming game with existing state.")
 	}
 
-	if err := e.SetGameState(e.CurrentState); err != nil {
+	if err := e.SetGameState(e.CurrentState); err != nil { // CurrentState를 저장
 		fmt.Printf("[TilePush] Error saving game state on start: %v\n", err)
 	}
 
@@ -178,4 +178,7 @@ func (e *Engine) IsGameOver() bool {
 		e.CurrentState.GameOver = true // 덱이 비면 게임 종료로 설정
 	}
 	return e.CurrentState.GameOver
+}
+func (e *Engine) SetBoardDimensions(rows, columns int) {
+
 }
