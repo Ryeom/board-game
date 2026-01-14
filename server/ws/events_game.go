@@ -12,7 +12,7 @@ import (
 	"github.com/Ryeom/board-game/log"
 )
 
-var activeGameEngines = make(map[string]game.Engine)
+var GlobalGameManager = game.NewManager()
 
 // HandleGameStart (game.start)게임 시작
 func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
@@ -159,7 +159,7 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 	}
 
 	engine.StartGame()
-	activeGameEngines[r.ID] = engine
+	GlobalGameManager.AddEngine(r.ID, engine)
 
 	r.IsGameStarted = true
 	if err := r.Save(); err != nil {
@@ -196,7 +196,7 @@ func HandleGameEnd(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	delete(activeGameEngines, r.ID)
+	GlobalGameManager.RemoveEngine(r.ID)
 
 	if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
 		log.Logger.Errorf("HandleGameEnd - Failed to delete game state for room %s (mode %s): %v", r.ID, r.GameMode, err)
@@ -239,7 +239,7 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	engine, ok := activeGameEngines[u.RoomID]
+	engine, ok := GlobalGameManager.GetEngine(u.RoomID)
 	if !ok {
 		sendError(u, resp.ErrorCodeGameNotStarted)
 		return
@@ -317,7 +317,7 @@ func HandleGameSync(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	engine, ok := activeGameEngines[u.RoomID]
+	engine, ok := GlobalGameManager.GetEngine(u.RoomID)
 	if !ok {
 		sendError(u, resp.ErrorCodeGameNotStarted)
 		return
