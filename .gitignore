@@ -1,2 +1,6 @@
 hanabi_log
 *.log
+
+# Local cache directories
+.cache/
+.modcache/

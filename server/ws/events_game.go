@@ -7,7 +7,6 @@ import (
 	"github.com/Ryeom/board-game/internal/domain/room"
 	"github.com/Ryeom/board-game/internal/game"
 	"github.com/Ryeom/board-game/internal/game/hanabi"
-	"github.com/Ryeom/board-game/internal/game/tilepush"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
@@ -116,33 +115,44 @@ func HandleGameStart(ctx context.Context, u *user.Session, event SocketEvent) {
 		engine = hanabiEngine
 	case game.Mode6Nimmt:
 	case game.ModeTilePush:
-		engine = tilepush.NewEngine(
-			playersInRoom,
-			func(eventName string, playerIDs []string, state any) {
-				fullTilePushState, ok := state.(*tilepush.State)
-				if !ok {
-					log.Logger.Errorf("HandleGameStart BroadcastFunc: Invalid state type, expected *tilepush.State")
-					return
-				}
-
-				for _, pID := range playerIDs {
-					playerView := fullTilePushState.GetPlayerView(pID)
-					payload := GameStatePayload{
-						RoomId:              r.ID,
-						GameMode:            r.GameMode,
-						GameStatus:          game.StatusPlaying,
-						GameState:           playerView,
-						CurrentTurnPlayerId: playerView.CurrentTurnPlayerID,
-						Timestamp:           time.Now(),
-					}
-					res := createWebSocketResult(eventName, payload, resp.SuccessCodeGameSync, "ko")
-					GlobalBroadcaster.SendToPlayer(pID, res)
-				}
-			},
-			setGameStateFunc, // TODO
-			getGameStateFunc,
-		)
-
+		// (rows, cols 변수 정의는 그대로 유지)
+		//tilePushEngine := tilepush.NewEngine(
+		//	playersInRoom,
+		//	func(eventName string, playerIDs []string, state any) {
+		//		fullTilePushState, ok := state.(*tilepush.State)
+		//		if !ok {
+		//			log.Logger.Errorf("HandleGameStart BroadcastFunc: Invalid state type, expected *tilepush.State")
+		//			return
+		//		}
+		//
+		//		for _, pID := range playerIDs {
+		//			playerView := fullTilePushState.GetPlayerView(pID)
+		//			payload := GameStatePayload{
+		//				RoomId:              r.ID,
+		//				GameMode:            r.GameMode,
+		//				GameStatus:          game.StatusPlaying,
+		//				GameState:           playerView,
+		//				CurrentTurnPlayerId: playerView.CurrentTurnPlayerID,
+		//				Timestamp:           time.Now(),
+		//			}
+		//			res := createWebSocketResult(eventName, payload, resp.SuccessCodeGameSync, "ko")
+		//			GlobalBroadcaster.SendToPlayer(pID, res)
+		//		}
+		//	},
+		//	func(state *tilepush.State) error {
+		//		return game.SaveGameState(ctx, r.GameMode, r.ID, state)
+		//	},
+		//	func() *tilepush.State {
+		//		var loadedState tilepush.State
+		//		err := game.GetGameState(ctx, r.GameMode, r.ID, &loadedState)
+		//		if err != nil {
+		//			log.Logger.Warningf("HandleGameStart - Could not load existing game state for room %s (mode %s): %v. Creating new.", r.ID, r.GameMode, err)
+		//			return nil
+		//		}
+		//		return &loadedState
+		//	},
+		//)
+		//engine = tilePushEngine
 	default:
 		sendError(u, resp.ErrorCodeRoomUnsupportedGameMode)
 		return

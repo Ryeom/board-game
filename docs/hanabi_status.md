@@ -83,9 +83,9 @@
 
 | ID | 작업 분류 | 상세 내용 | 상태 |
 | :--- | :--- | :--- | :--- |
-| **TASK-001** | **서버 와이어링** | `events_game.go`에서 `HandleGameStart` 내 `hanabi.NewEngine` 초기화 코드 주석 해제 | [ ] |
-| **TASK-002** | **서버 와이어링** | `BroadcastFunc`에서 `state`를 `*hanabi.State`로 캐스팅하는 로직 검증 및 `NewEngine` 호출 시그니처 일치 확인 | [ ] |
-| **TASK-003** | **서버 와이어링** | `setGameStateFunc`, `getGameStateFunc` 콜백 함수가 `game.SaveGameState`, `game.GetGameState`와 올바르게 매핑되는지 확인 | [ ] |
+| **TASK-001** | **서버 와이어링** | `events_game.go`에서 `HandleGameStart` 내 `hanabi.NewEngine` 초기화 코드 주석 해제 | [✅] |
+| **TASK-002** | **서버 와이어링** | `BroadcastFunc`에서 `state`를 `*hanabi.State`로 캐스팅하는 로직 검증 및 `NewEngine` 호출 시그니처 일치 확인 | [✅] |
+| **TASK-003** | **서버 와이어링** | `setGameStateFunc`, `getGameStateFunc` 콜백 함수가 `game.SaveGameState`, `game.GetGameState`와 올바르게 매핑되는지 확인 | [✅] |
 | **TASK-004** | **게임 로직 개선** | **즉시 승리 구현**: `handlePlayCard`에서 불꽃놀이 점수 합계 25점 도달 시 `GameOver = true` 설정 | [ ] |
 | **TASK-005** | **게임 로직 개선** | **최종 점수 전송**: `game.end` 이벤트 브로드캐스트 시 `finalScore` 및 `victory` (승리 여부) 필드 포함 | [ ] |
 | **TASK-006** | **규칙 검증 강화** | **빈 힌트 방지**: `handleGiveHint`에서 대상 카드가 0장일 경우 에러 반환 (토큰 소모 방지) | [ ] |
