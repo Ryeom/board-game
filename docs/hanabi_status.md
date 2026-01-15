@@ -87,7 +87,7 @@
 | **TASK-002** | **서버 와이어링** | `BroadcastFunc`에서 `state`를 `*hanabi.State`로 캐스팅하는 로직 검증 및 `NewEngine` 호출 시그니처 일치 확인 | [✅] | 2026-01-14 |
 | **TASK-003** | **서버 와이어링** | `setGameStateFunc`, `getGameStateFunc` 콜백 함수가 `game.SaveGameState`, `game.GetGameState`와 올바르게 매핑되는지 확인 | [✅] | 2026-01-14 |
 | **TASK-101** | **리팩토링** | `activeGameEngines`를 관리하는 `GameManager` 구조체 추출 (전역 상태 제거) | [✅] | 2026-01-14 |
-| **TASK-102** | **리팩토링** | 웹소켓 핸들러와 게임 로직 분리 (Service 레이어 도입) | [ ] | |
+| **TASK-102** | **리팩토링** | 웹소켓 핸들러와 게임 로직 분리 (Service 레이어 도입) | [✅] | 2026-01-15 |
 | **TASK-103** | **리팩토링** | `events_game.go` 내 불필요한 주석 및 미사용 코드(TilePush 등) 정리 | [ ] | |
 | **TASK-004** | **게임 로직 개선** | **즉시 승리 구현**: `handlePlayCard`에서 불꽃놀이 점수 합계 25점 도달 시 `GameOver = true` 설정 | [ ] | |
 | **TASK-005** | **게임 로직 개선** | **최종 점수 전송**: `game.end` 이벤트 브로드캐스트 시 `finalScore` 및 `victory` (승리 여부) 필드 포함 | [ ] | |
