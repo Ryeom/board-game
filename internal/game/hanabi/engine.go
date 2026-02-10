@@ -193,6 +193,10 @@ func (e *Engine) handlePlayCard(data map[string]any) error {
 		if card.Number == 5 && e.CurrentState.HintTokens < 8 {
 			e.CurrentState.HintTokens++
 		}
+		// Victory Check: 승리 조건 25점, game over
+		if e.CurrentState.GetCurrentScore() == 25 {
+			e.CurrentState.GameOver = true
+		}
 	} else {
 		e.CurrentState.DiscardPile = append(e.CurrentState.DiscardPile, card)
 		e.CurrentState.MissTokens--
