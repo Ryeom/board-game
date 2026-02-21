@@ -14,6 +14,8 @@ type State struct {
 	DiscardPile []*Card            `json:"discardPile"`
 	GameStarted bool               `json:"gameStarted"`
 	GameOver    bool               `json:"gameOver"`
+	FinalScore  int                `json:"finalScore,omitempty"`
+	EndReason   string             `json:"endReason,omitempty"`
 	LastPlayer  int                `json:"lastPlayer"`
 	PlayerHands map[string][]*Card `json:"playerHands"` // player ID → cards
 }

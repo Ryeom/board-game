@@ -60,6 +60,18 @@ func (e *Engine) StartGame() {
 }
 
 func (e *Engine) EndGame() {
+	if e.CurrentState != nil {
+		e.CurrentState.FinalScore = e.CurrentState.GetCurrentScore()
+
+		switch {
+		case e.CurrentState.GetCurrentScore() == 25:
+			e.CurrentState.EndReason = "perfect"
+		case e.CurrentState.MissTokens <= 0:
+			e.CurrentState.EndReason = "miss_depleted"
+		default:
+			e.CurrentState.EndReason = "deck_exhausted"
+		}
+	}
 
 	e.Broadcast("game.end", e.Players, e.CurrentState)
 }
