@@ -87,17 +87,17 @@ func (e *Engine) HandleEvent(event any) error {
 		return err
 	}
 
-	// 추가된 로직: 게임 종료 조건을 확인합니다.
-	if e.CurrentState.IsGameOver() {
-		e.EndGame()
-	}
-
+	// 상태 저장
 	if e.CurrentState != nil {
 		if saveErr := e.SetGameState(e.CurrentState); saveErr != nil {
 			fmt.Printf("[Hanabi] Error saving game state after event %s: %v\n", cast.Type, saveErr)
 		}
 	}
-	e.Broadcast("game.action.sync", e.Players, e.CurrentState)
+
+	// 게임 종료 시에는 sync를 보내지 않음 (서비스 레이어에서 EndGame 호출)
+	if !e.CurrentState.IsGameOver() {
+		e.Broadcast("game.action.sync", e.Players, e.CurrentState)
+	}
 	return nil
 }
 

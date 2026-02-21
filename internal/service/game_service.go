@@ -191,14 +191,19 @@ func (s *GameService) ProcessAction(ctx context.Context, roomID string, userID s
 
 	if specificEngine.IsGameOver() {
 		log.Logger.Infof("Game in room %s ended automatically.", roomID)
-		// Auto-call end game logic? Or just broadcast end?
-		// We can reuse EndGame logic but we need to bypass 'Host' check if it's auto-end.
-		// For now, let's call RemoveEngine and Broadcast.
+
+		// 엔진이 플레이어별 뷰로 game.end 브로드캐스트
+		specificEngine.EndGame()
+
+		// 정리: 엔진 제거, 게임 상태 삭제, 방 상태 업데이트
 		s.Manager.RemoveEngine(r.ID)
-		game.DeleteGameState(ctx, r.GameMode, r.ID)
+		if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
+			log.Logger.Errorf("ProcessAction - Failed to delete game state: %v", err)
+		}
 		r.IsGameStarted = false
-		r.Save()
-		s.Broadcaster.BroadcastToRoom(r.ID, "game.end", map[string]any{"roomId": r.ID}, resp.SuccessCodeGameSync)
+		if err := r.Save(); err != nil {
+			log.Logger.Errorf("ProcessAction - Failed to save room state: %v", err)
+		}
 		return nil
 	}
 
