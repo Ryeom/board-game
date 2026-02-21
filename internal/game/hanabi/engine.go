@@ -101,13 +101,35 @@ func (e *Engine) HandleEvent(event any) error {
 	return nil
 }
 
+// currentPlayerID 현재 턴인 플레이어의 ID를 반환
+func (e *Engine) currentPlayerID() string {
+	return e.Players[e.CurrentState.TurnIndex]
+}
+
+// validateTurn 현재 턴인 플레이어인지 검증
+func (e *Engine) validateTurn(playerID string) error {
+	if e.CurrentState == nil {
+		return fmt.Errorf("game not started or state is nil")
+	}
+	if e.currentPlayerID() != playerID {
+		return fmt.Errorf("not your turn: current turn is %s", e.currentPlayerID())
+	}
+	return nil
+}
+
 func (e *Engine) handleGiveHint(data map[string]any) error {
+	playerID, _ := data["playerId"].(string)
 	toID, _ := data["toId"].(string)
 	hintType, _ := data["hintType"].(string)
 	value := data["value"]
 
-	if e.CurrentState == nil {
-		return fmt.Errorf("game not started or state is nil")
+	if err := e.validateTurn(playerID); err != nil {
+		return err
+	}
+
+	// 자기 자신에게 힌트를 줄 수 없음
+	if playerID == toID {
+		return fmt.Errorf("cannot give hint to yourself")
 	}
 
 	hand, ok := e.CurrentState.PlayerHands[toID]
@@ -115,10 +137,13 @@ func (e *Engine) handleGiveHint(data map[string]any) error {
 		return fmt.Errorf("player %s hand not found", toID)
 	}
 
+	// 힌트 토큰이 0이면 힌트를 줄 수 없음
 	if e.CurrentState.HintTokens <= 0 {
-		return fmt.Errorf("not enough hint tokens")
+		return fmt.Errorf("no hint tokens remaining")
 	}
 
+	// 매칭되는 카드 수를 세서 빈 힌트 방지
+	matchCount := 0
 	switch hintType {
 	case "color":
 		colorStr, ok := value.(string)
@@ -129,6 +154,7 @@ func (e *Engine) handleGiveHint(data map[string]any) error {
 		for _, card := range hand {
 			if card.Color == color {
 				card.ColorKnown = true
+				matchCount++
 			}
 		}
 	case "number":
@@ -139,10 +165,15 @@ func (e *Engine) handleGiveHint(data map[string]any) error {
 		for _, card := range hand {
 			if card.Number == int(num) {
 				card.NumberKnown = true
+				matchCount++
 			}
 		}
 	default:
 		return fmt.Errorf("unknown hint type: %s", hintType)
+	}
+
+	if matchCount == 0 {
+		return fmt.Errorf("hint must match at least one card")
 	}
 
 	e.CurrentState.HintTokens--
@@ -154,8 +185,8 @@ func (e *Engine) handlePlayCard(data map[string]any) error {
 	indexFloat, _ := data["cardIndex"].(float64)
 	index := int(indexFloat)
 
-	if e.CurrentState == nil {
-		return fmt.Errorf("game not started or state is nil")
+	if err := e.validateTurn(playerID); err != nil {
+		return err
 	}
 
 	hand, ok := e.CurrentState.PlayerHands[playerID]
@@ -212,8 +243,13 @@ func (e *Engine) handleDiscardCard(data map[string]any) error {
 	indexFloat, _ := data["cardIndex"].(float64)
 	index := int(indexFloat)
 
-	if e.CurrentState == nil {
-		return fmt.Errorf("game not started or state is nil")
+	if err := e.validateTurn(playerID); err != nil {
+		return err
+	}
+
+	// 힌트 토큰이 최대(8)일 때 버리기 불가
+	if e.CurrentState.HintTokens >= 8 {
+		return fmt.Errorf("cannot discard when hint tokens are full")
 	}
 
 	hand, ok := e.CurrentState.PlayerHands[playerID]
