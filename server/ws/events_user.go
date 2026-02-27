@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// HandleUserIdentify 유저 초기 식별
+// HandleUserIdentify 유저 초기 식별 (재접속 포함)
 func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent) {
 	data := event.Data
 	requestedUserID, ok1 := data["userId"].(string)
@@ -24,6 +24,66 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 
 	oldSessionID := u.ID
 
+	// 기존 세션 확인 (재접속 감지)
+	prevSession, err := user.GetSession(requestedUserID)
+	if err == nil && prevSession != nil && prevSession.Status == "disconnected" && prevSession.RoomID != "" {
+		// 재접속: 기존 세션 정보 복원하되 새 연결 사용
+		u.ID = prevSession.ID
+		u.Name = prevSession.Name
+		u.RoomID = prevSession.RoomID
+		u.IsHost = prevSession.IsHost
+		u.Status = "connected"
+
+		ActiveSessions().Delete(oldSessionID)
+		ActiveSessions().Store(u.ID, u)
+
+		if err := user.SaveUserSession(u); err != nil {
+			log.Logger.Errorf("HandleUserIdentify - Failed to save reconnected session %s: %v", u.ID, err)
+			sendError(u, resp.ErrorCodeWSInitialSessionSaveFailed)
+			return
+		}
+
+		// room_sessions set에 다시 추가 (브로드캐스터가 찾을 수 있도록)
+		if err := redisutil.AddSet(redisutil.RedisTargetUser, user.RoomIndexKey(u.RoomID), u.ID); err != nil {
+			log.Logger.Errorf("HandleUserIdentify - Failed to re-add user %s to room sessions set: %v", u.ID, err)
+		}
+
+		fmt.Printf("[Reconnected] ID: %s | Name: %s | Room: %s | Time: %s\n",
+			u.ID, u.Name, u.RoomID, time.Now().Format(time.RFC3339))
+
+		// 방에 재접속 알림
+		GlobalBroadcaster.BroadcastToRoom(u.RoomID, map[string]any{
+			"type": "user.reconnected",
+			"data": map[string]string{
+				"userId":   u.ID,
+				"userName": u.Name,
+			},
+		})
+
+		// 게임 진행 중이면 게임 상태 전송
+		r, roomOk := room.GetRoom(ctx, u.RoomID)
+		if roomOk && r.IsGameStarted {
+			state, gameMode, gsErr := GlobalGameService.GetGameState(ctx, u.RoomID, u.ID)
+			if gsErr == nil {
+				sendResult(u, "game.sync", map[string]any{
+					"roomId":      u.RoomID,
+					"gameMode":    gameMode,
+					"gameState":   state,
+					"reconnected": true,
+				}, resp.SuccessCodeGameSync)
+			}
+		}
+
+		sendResult(u, "user.identify", map[string]any{
+			"userId":      u.ID,
+			"userName":    u.Name,
+			"roomId":      u.RoomID,
+			"reconnected": true,
+		}, resp.SuccessCodeUserReconnected)
+		return
+	}
+
+	// 일반 식별 (신규 접속)
 	u.ID = requestedUserID
 	u.Name = userName
 	u.Status = "connected"
@@ -82,7 +142,6 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 
 // HandleUserDisconnect 유저 연결 종료
 func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEvent) {
-	// Remove from activeSessions map first
 	ActiveSessions().Delete(u.ID)
 
 	roomID := u.RoomID
@@ -96,21 +155,40 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		return
 	}
 
-	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(roomID), u.ID); err != nil {
-		log.Logger.Errorf("HandleUserDisconnect - Failed to remove user %s from room %s sessions set: %v", u.ID, roomID, err)
-		// 에러 처리
-	}
-
 	r, ok := room.GetRoom(ctx, roomID)
 	if !ok {
-		log.Logger.Warningf("HandleUserDisconnect - Room %s not found for user %s trying to leave. Cleaning up session.", u.RoomID, u.ID)
+		log.Logger.Warningf("HandleUserDisconnect - Room %s not found for user %s. Cleaning up session.", u.RoomID, u.ID)
 		if err := user.DeleteUserSession(u.ID); err != nil {
-			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (room not found case): %v", u.ID, err)
+			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (room not found): %v", u.ID, err)
 		}
 		if u.Conn != nil {
 			_ = u.Conn.Close()
 		}
 		return
+	}
+
+	// 게임 진행 중이면 세션 보존 (재접속 대기)
+	if r.IsGameStarted {
+		u.Status = "disconnected"
+		u.Conn = nil
+		if err := user.SaveUserSession(u); err != nil {
+			log.Logger.Errorf("HandleUserDisconnect - Failed to save disconnected session %s: %v", u.ID, err)
+		}
+		log.Logger.Infof("Player %s disconnected during game in room %s. Session preserved for reconnection.", u.ID, r.ID)
+
+		GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
+			"type": "user.disconnected",
+			"data": map[string]string{
+				"userId":   u.ID,
+				"userName": u.Name,
+			},
+		})
+		return
+	}
+
+	// 게임 중이 아니면 기존 로직: 방에서 제거, 세션 삭제
+	if err := redisutil.RemoveSetMembers(redisutil.RedisTargetUser, user.RoomIndexKey(roomID), u.ID); err != nil {
+		log.Logger.Errorf("HandleUserDisconnect - Failed to remove user %s from room %s sessions set: %v", u.ID, roomID, err)
 	}
 
 	updatedPlayers := make([]string, 0, len(r.Players))
@@ -120,16 +198,17 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		}
 	}
 	r.Players = updatedPlayers
+	r.ResetReady()
 
 	if len(r.Players) == 0 {
 		_ = room.DeleteRoom(ctx, r.ID)
 		if err := redisutil.Delete(redisutil.RedisTargetUser, user.RoomIndexKey(r.ID)); err != nil {
-			log.Logger.Errorf("HandleUserDisconnect - Failed to delete room %s sessions set after disconnect deletion: %v", r.ID, err)
+			log.Logger.Errorf("HandleUserDisconnect - Failed to delete room %s sessions set: %v", r.ID, err)
 		}
 		log.Logger.Infof("Room %s deleted as no players left after disconnect.", r.ID)
-	} else { // 방에 플레이어가 남아있다면
-		if r.Host == u.ID { // 방장이 연결 끊김으로 나갔다면 새로운 방장 위임
-			r.Host = updatedPlayers[0] // 첫 번째 남은 플레이어를 새 방장으로 위임
+	} else {
+		if r.Host == u.ID {
+			r.Host = updatedPlayers[0]
 			log.Logger.Infof("Host of room %s changed from %s to %s due to disconnect.", r.ID, u.ID, r.Host)
 		}
 		if err := r.Save(); err != nil {

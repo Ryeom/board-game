@@ -1289,6 +1289,21 @@
     "httpStatus": 200,
     "severity": "Info"
   },
+  "SUCCESS_USER_RECONNECTED": {
+    "ko": {
+      "message": "재접속에 성공했습니다. 게임 상태가 복원되었습니다.",
+      "action": ""
+    },
+    "en": {
+      "message": "Reconnected successfully. Game state has been restored.",
+      "action": ""
+    },
+    "developerMessage": "플레이어 재접속 및 게임 상태 복원 성공.",
+    "service": "User",
+    "type": "Success",
+    "httpStatus": 200,
+    "severity": "Info"
+  },
   "SUCCESS_USER_PROFILE_UPDATE": {
     "ko": {
       "message": "사용자 프로필이 성공적으로 업데이트되었습니다.",

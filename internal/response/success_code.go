@@ -12,6 +12,7 @@ const (
 	SuccessCodeUserProfileFetch   = "SUCCESS_USER_PROFILE_FETCH"
 	SuccessCodeUserProfileUpdate  = "SUCCESS_USER_PROFILE_UPDATE"
 	SuccessCodeUserProfileGet     = "SUCCESS_USER_PROFILE_GET"
+	SuccessCodeUserReconnected    = "SUCCESS_USER_RECONNECTED"
 
 	SuccessCodeRoomCreate    = "SUCCESS_ROOM_CREATE"
 	SuccessCodeRoomJoin      = "SUCCESS_ROOM_JOIN"
