@@ -49,6 +49,7 @@ var roomEvents = map[string]ExecutionEvent{
 	"room.leave":  HandleRoomLeave,  // 방 나가기
 	"room.list":   HandleRoomList,   // 방 목록 조회
 	"room.update": HandleRoomUpdate, // 방 설정 변경
+	"room.ready":  HandleRoomReady,  // 준비 상태 토글
 	"room.kick":   HandleRoomKick,   // 강제 퇴장
 	//"room.delete": HandleRoomDelete, // 방 삭제
 }

@@ -152,6 +152,25 @@ func HandleRoomUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 	sendResult(u, event.Type, r, resp.SuccessCodeRoomUpdate)
 }
 
+// HandleRoomReady 레디 상태 토글
+func HandleRoomReady(ctx context.Context, u *user.Session, event SocketEvent) {
+	if u.RoomID == "" {
+		sendError(u, resp.ErrorCodeRoomNotInRoom)
+		return
+	}
+
+	isReady, readyPlayers, err := GlobalRoomService.SetPlayerReady(ctx, u.ID, u.RoomID)
+	if err != nil {
+		sendError(u, err.Error())
+		return
+	}
+
+	sendResult(u, event.Type, map[string]any{
+		"isReady":      isReady,
+		"readyPlayers": readyPlayers,
+	}, resp.SuccessCodeRoomReady)
+}
+
 // HandleRoomKick 방에서 퇴장
 func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 	targetID, ok := event.Data["userId"].(string)

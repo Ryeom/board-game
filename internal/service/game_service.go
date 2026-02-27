@@ -47,13 +47,9 @@ func (s *GameService) StartGame(ctx context.Context, roomID string, userID strin
 		return fmt.Errorf(resp.ErrorCodeGameAlreadyStarted)
 	}
 
-	// NOTE: Player session check logic remains in handler or moves here?
-	// Validation of "all users ready" is tricky because it depends on user.Session (active connections).
-	// For clean architecture, Service typically shouldn't know about "Sessions".
-	// However, we can check basic logic here. The handler did session checks.
-	// We will assume handler checks session/connection availability before calling this or we integrate it.
-	// For now, we will trust the handler to check connectivity if needed, OR we can inject a SessionManager.
-	// Let's proceed with game logic first.
+	if !r.AllPlayersReady() {
+		return fmt.Errorf(resp.ErrorCodeGameNotAllPlayersReady)
+	}
 
 	setGameStateFunc := func(state *hanabi.State) error {
 		return game.SaveGameState(ctx, r.GameMode, r.ID, state)
@@ -101,6 +97,7 @@ func (s *GameService) StartGame(ctx context.Context, roomID string, userID strin
 	s.Manager.AddEngine(r.ID, engine)
 
 	r.IsGameStarted = true
+	r.ResetReady()
 	if err := r.Save(); err != nil {
 		return fmt.Errorf(resp.ErrorCodeGameInfoNotSaved)
 	}
@@ -137,13 +134,10 @@ func (s *GameService) EndGame(ctx context.Context, roomID string, userID string)
 	}
 
 	r.IsGameStarted = false
+	r.ResetReady()
 	if err := r.Save(); err != nil {
 		return fmt.Errorf(resp.ErrorCodeGameInfoNotSaved)
 	}
-
-	// Status reset logic for players (idle/connected) was in handler.
-	// Since that depends on user.Session modification, validation/DB, it might belong here if we import user.
-	// But let's keep it simple for now or assume we can ignore it until we fix user session flow.
 
 	payload := map[string]any{
 		"roomId":     r.ID,
@@ -201,6 +195,7 @@ func (s *GameService) ProcessAction(ctx context.Context, roomID string, userID s
 			log.Logger.Errorf("ProcessAction - Failed to delete game state: %v", err)
 		}
 		r.IsGameStarted = false
+		r.ResetReady()
 		if err := r.Save(); err != nil {
 			log.Logger.Errorf("ProcessAction - Failed to save room state: %v", err)
 		}

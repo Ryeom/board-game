@@ -21,6 +21,7 @@ const (
 	SuccessCodeRoomKick      = "SUCCESS_ROOM_KICK"
 	SuccessCodeRoomDelete    = "SUCCESS_ROOM_DELETE"
 	SuccessCodeRoomNoChanges = "SUCCESS_ROOM_NO_CHANGES" // 변경 사항 없을 때
+	SuccessCodeRoomReady    = "SUCCESS_ROOM_READY"
 
 	SuccessCodeChatSend         = "SUCCESS_CHAT_SEND"
 	SuccessCodeChatHistoryFetch = "SUCCESS_CHAT_HISTORY_FETCH"

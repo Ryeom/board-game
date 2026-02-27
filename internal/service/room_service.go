@@ -130,6 +130,7 @@ func (s *RoomService) LeaveRoom(ctx context.Context, userID string, roomID strin
 		}
 	}
 	r.Players = newPlayers
+	r.ResetReady()
 
 	roomDeleted := false
 	newHostID := r.Host
@@ -287,6 +288,7 @@ func (s *RoomService) KickUser(ctx context.Context, hostID string, roomID string
 	}
 
 	r.Players = newPlayers
+	r.ResetReady()
 	roomDeleted := false
 	newHostID := r.Host
 
@@ -315,6 +317,39 @@ func (s *RoomService) KickUser(ctx context.Context, hostID string, roomID string
 	}, resp.SuccessCodeRoomKick)
 
 	return newHostID, roomDeleted, nil
+}
+
+func (s *RoomService) SetPlayerReady(ctx context.Context, userID string, roomID string) (bool, map[string]bool, error) {
+	r, ok := room.GetRoom(ctx, roomID)
+	if !ok {
+		return false, nil, fmt.Errorf(resp.ErrorCodeRoomNotFound)
+	}
+
+	// 방에 속한 플레이어인지 확인
+	inRoom := false
+	for _, pid := range r.Players {
+		if pid == userID {
+			inRoom = true
+			break
+		}
+	}
+	if !inRoom {
+		return false, nil, fmt.Errorf(resp.ErrorCodeRoomUserNotInRoom)
+	}
+
+	isReady := r.ToggleReady(userID)
+	if err := r.Save(); err != nil {
+		return false, nil, fmt.Errorf(resp.ErrorCodeRoomUpdateFailed)
+	}
+
+	s.Broadcaster.BroadcastToRoom(r.ID, "room.ready", map[string]any{
+		"userId":       userID,
+		"isReady":      isReady,
+		"readyPlayers": r.ReadyPlayers,
+		"allReady":     r.AllPlayersReady(),
+	}, resp.SuccessCodeRoomReady)
+
+	return isReady, r.ReadyPlayers, nil
 }
 
 func (s *RoomService) GetRoomList(ctx context.Context) ([]*room.Room, error) {

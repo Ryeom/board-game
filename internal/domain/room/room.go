@@ -11,15 +11,16 @@ import (
 )
 
 type Room struct {
-	ID            string    `json:"id"`
-	RoomName      string    `json:"roomName"`
-	Host          string    `json:"host"` // 방장
-	Players       []string  `json:"players"`
-	Password      string    `json:"-"`
-	MaxPlayers    int       `json:"maxPlayers"`
-	GameMode      game.Mode `json:"gameMode"`
-	IsGameStarted bool      `json:"isGameStarted"`
-	CreatedAt     time.Time `json:"createdAt"`
+	ID            string          `json:"id"`
+	RoomName      string          `json:"roomName"`
+	Host          string          `json:"host"` // 방장
+	Players       []string        `json:"players"`
+	ReadyPlayers  map[string]bool `json:"readyPlayers"`
+	Password      string          `json:"-"`
+	MaxPlayers    int             `json:"maxPlayers"`
+	GameMode      game.Mode       `json:"gameMode"`
+	IsGameStarted bool            `json:"isGameStarted"`
+	CreatedAt     time.Time       `json:"createdAt"`
 }
 
 func CreateRoom(ctx context.Context, roomID string, hostID string, roomName string, password string, maxPlayers int) (*Room, error) { // 인자 추가
@@ -40,10 +41,11 @@ func CreateRoom(ctx context.Context, roomID string, hostID string, roomName stri
 		RoomName:      roomName,
 		Host:          hostID,
 		Players:       []string{hostID},
+		ReadyPlayers:  make(map[string]bool),
 		Password:      hashedPassword,
 		MaxPlayers:    maxPlayers,
 		GameMode:      game.ModeHanabi,
-		IsGameStarted: false, // 초기에는 게임이 시작되지 않은 상태
+		IsGameStarted: false,
 		CreatedAt:     time.Now(),
 	}
 	if err := r.Save(); err != nil {
@@ -114,10 +116,38 @@ func (r *Room) Join(ctx context.Context, userID string, password string) (bool, 
 		}
 	}
 
-	// 4. 플레이어 추가 및 저장
+	// 4. 플레이어 추가 및 레디 상태 초기화
 	r.Players = append(r.Players, userID)
+	r.ResetReady()
 	if err := r.Save(); err != nil {
 		return false, errors.New(resp.ErrorCodeRoomJoinFailed)
 	}
 	return true, nil
+}
+
+// ToggleReady 플레이어의 레디 상태를 토글
+func (r *Room) ToggleReady(userID string) bool {
+	if r.ReadyPlayers == nil {
+		r.ReadyPlayers = make(map[string]bool)
+	}
+	r.ReadyPlayers[userID] = !r.ReadyPlayers[userID]
+	return r.ReadyPlayers[userID]
+}
+
+// AllPlayersReady 모든 플레이어가 레디 상태인지 확인
+func (r *Room) AllPlayersReady() bool {
+	if len(r.Players) < 2 {
+		return false
+	}
+	for _, pid := range r.Players {
+		if !r.ReadyPlayers[pid] {
+			return false
+		}
+	}
+	return true
+}
+
+// ResetReady 모든 플레이어의 레디 상태 초기화
+func (r *Room) ResetReady() {
+	r.ReadyPlayers = make(map[string]bool)
 }
