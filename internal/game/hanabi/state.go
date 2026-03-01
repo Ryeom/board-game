@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+const (
+	MaxHintTokens        = 8
+	InitialMissTokens    = 3
+	PerfectScore         = 25
+	InitialHandSize      = 5
+	ReducedHandSize      = 4
+	MinPlayersForReduced = 4
+	MaxCardNumber        = 5
+)
+
 type State struct {
 	Fireworks   map[Color]int      `json:"fireworks"`
 	HintTokens  int                `json:"hintTokens"`
@@ -31,8 +41,8 @@ func NewState(deck []*Card) *State {
 		Fireworks: map[Color]int{
 			Red: 0, Green: 0, Blue: 0, Yellow: 0, White: 0,
 		},
-		HintTokens:  8,
-		MissTokens:  3,
+		HintTokens:  MaxHintTokens,
+		MissTokens:  InitialMissTokens,
 		TurnIndex:   0,
 		Deck:        deck,
 		DiscardPile: []*Card{},
@@ -44,9 +54,9 @@ func NewState(deck []*Card) *State {
 
 // DealInitialCards 게임 시작 시 플레이어에 초기 카드 분배
 func DealInitialCards(players []string, deck *[]*Card, hands map[string][]*Card) {
-	cardCount := 5
-	if len(players) >= 4 {
-		cardCount = 4
+	cardCount := InitialHandSize
+	if len(players) >= MinPlayersForReduced {
+		cardCount = ReducedHandSize
 	}
 
 	for _, player := range players {

@@ -92,6 +92,8 @@ func sendResult(u *user.Session, eventType string, data interface{}, resultMsgCo
 		return
 	}
 	res := createWebSocketResult(eventType, data, resultMsgCode, "ko")
+	u.WriteMutex.Lock()
+	defer u.WriteMutex.Unlock()
 	_ = u.Conn.WriteJSON(res)
 }
 func sendError(u *user.Session, resultMsgCode string) {
@@ -99,6 +101,8 @@ func sendError(u *user.Session, resultMsgCode string) {
 		return
 	}
 	res := createWebSocketResult("error", nil, resultMsgCode, "ko")
+	u.WriteMutex.Lock()
+	defer u.WriteMutex.Unlock()
 	_ = u.Conn.WriteJSON(res)
 }
 

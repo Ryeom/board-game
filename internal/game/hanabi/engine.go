@@ -2,6 +2,9 @@ package hanabi
 
 import (
 	"fmt"
+	"sync"
+
+	"github.com/Ryeom/board-game/log"
 )
 
 type Event struct {
@@ -14,6 +17,7 @@ type SetGameStateFunc func(state *State) error
 type GetGameStateFunc func() *State
 
 type Engine struct {
+	mu           sync.Mutex
 	Players      []string
 	Broadcast    BroadcastFunc
 	SetGameState SetGameStateFunc
@@ -37,7 +41,9 @@ func (e *Engine) IsGameOver() bool {
 }
 
 func (e *Engine) StartGame() {
-	fmt.Println("[Hanabi] StartGame")
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	log.Logger.Debugf("[Hanabi] StartGame")
 
 	state := e.GetGameState()
 	if state == nil {
@@ -49,22 +55,24 @@ func (e *Engine) StartGame() {
 		state.TurnIndex = 0
 		state.LastPlayer = -1
 	} else {
-		fmt.Println("[Hanabi] Resuming game with existing state.")
+		log.Logger.Debugf("[Hanabi] Resuming game with existing state.")
 	}
 
 	e.CurrentState = state
 	if err := e.SetGameState(state); err != nil {
-		fmt.Printf("[Hanabi] Error saving game state on start: %v\n", err)
+		log.Logger.Errorf("[Hanabi] Error saving game state on start: %v", err)
 	}
 	e.Broadcast("game.start.init", e.Players, e.CurrentState)
 }
 
 func (e *Engine) EndGame() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.CurrentState != nil {
 		e.CurrentState.FinalScore = e.CurrentState.GetCurrentScore()
 
 		switch {
-		case e.CurrentState.GetCurrentScore() == 25:
+		case e.CurrentState.GetCurrentScore() == PerfectScore:
 			e.CurrentState.EndReason = "perfect"
 		case e.CurrentState.MissTokens <= 0:
 			e.CurrentState.EndReason = "miss_depleted"
@@ -76,11 +84,13 @@ func (e *Engine) EndGame() {
 	e.Broadcast("game.end", e.Players, e.CurrentState)
 }
 func (e *Engine) HandleEvent(event any) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	cast, ok := event.(Event)
 	if !ok {
 		return fmt.Errorf("invalid event")
 	}
-	fmt.Println("[Hanabi] HandleEvent - Type:", cast.Type)
+	log.Logger.Debugf("[Hanabi] HandleEvent - Type: %s", cast.Type)
 	var err error
 	switch cast.Type {
 	case "give_hint":
@@ -102,7 +112,7 @@ func (e *Engine) HandleEvent(event any) error {
 	// 상태 저장
 	if e.CurrentState != nil {
 		if saveErr := e.SetGameState(e.CurrentState); saveErr != nil {
-			fmt.Printf("[Hanabi] Error saving game state after event %s: %v\n", cast.Type, saveErr)
+			log.Logger.Errorf("[Hanabi] Error saving game state after event %s: %v", cast.Type, saveErr)
 		}
 	}
 
@@ -233,11 +243,11 @@ func (e *Engine) handlePlayCard(data map[string]any) error {
 
 	if e.CurrentState.Fireworks[card.Color]+1 == card.Number {
 		e.CurrentState.Fireworks[card.Color] = card.Number
-		if card.Number == 5 && e.CurrentState.HintTokens < 8 {
+		if card.Number == MaxCardNumber && e.CurrentState.HintTokens < MaxHintTokens {
 			e.CurrentState.HintTokens++
 		}
 		// Victory Check: 승리 조건 25점, game over
-		if e.CurrentState.GetCurrentScore() == 25 {
+		if e.CurrentState.GetCurrentScore() == PerfectScore {
 			e.CurrentState.GameOver = true
 		}
 	} else {
@@ -259,8 +269,8 @@ func (e *Engine) handleDiscardCard(data map[string]any) error {
 		return err
 	}
 
-	// 힌트 토큰이 최대(8)일 때 버리기 불가
-	if e.CurrentState.HintTokens >= 8 {
+	// 힌트 토큰이 최대일 때 버리기 불가
+	if e.CurrentState.HintTokens >= MaxHintTokens {
 		return fmt.Errorf("cannot discard when hint tokens are full")
 	}
 
@@ -295,7 +305,7 @@ func (e *Engine) handleDiscardCard(data map[string]any) error {
 		}
 	}
 
-	if e.CurrentState.HintTokens < 8 {
+	if e.CurrentState.HintTokens < MaxHintTokens {
 		e.CurrentState.HintTokens++
 	}
 	return nil

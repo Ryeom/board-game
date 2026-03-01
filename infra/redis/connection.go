@@ -2,7 +2,6 @@ package redisutil
 
 import (
 	"context"
-	"fmt"
 	"github.com/Ryeom/board-game/log"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
@@ -57,6 +56,6 @@ func CreateClient(db int) (*redis.Client, error) {
 		log.Logger.Fatal("❌ Redis 연결 실패 %s [%d] : %v", addr, db, err)
 		return nil, err
 	}
-	fmt.Println("✅ Redis 연결 성공")
+	log.Logger.Infof("Redis 연결 성공: %s [%d]", addr, db)
 	return c, nil
 }

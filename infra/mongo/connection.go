@@ -55,7 +55,7 @@ func NewClient(ip, port, user, pw string) *mongo.Client {
 		return nil
 	}
 
-	fmt.Println("MongoDB에 성공적으로 연결되었습니다!")
+	log.Logger.Infof("MongoDB에 성공적으로 연결되었습니다!")
 	return client
 }
 

@@ -1,9 +1,20 @@
 package hanabi
 
 import (
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/Ryeom/board-game/log"
+	"github.com/op/go-logging"
 )
+
+func TestMain(m *testing.M) {
+	log.Logger = logging.MustGetLogger("test")
+	backend := logging.NewLogBackend(os.Stderr, "", 0)
+	logging.SetBackend(backend)
+	os.Exit(m.Run())
+}
 
 // newTestEngine 테스트용 엔진 생성 헬퍼
 func newTestEngine(players []string) *Engine {

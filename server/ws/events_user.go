@@ -2,7 +2,6 @@ package ws
 
 import (
 	"context"
-	"fmt"
 	redisutil "github.com/Ryeom/board-game/infra/redis"
 	"github.com/Ryeom/board-game/internal/domain/room"
 	resp "github.com/Ryeom/board-game/internal/response"
@@ -48,7 +47,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 			log.Logger.Errorf("HandleUserIdentify - Failed to re-add user %s to room sessions set: %v", u.ID, err)
 		}
 
-		fmt.Printf("[Reconnected] ID: %s | Name: %s | Room: %s | Time: %s\n",
+		log.Logger.Infof("[Reconnected] ID: %s | Name: %s | Room: %s | Time: %s",
 			u.ID, u.Name, u.RoomID, time.Now().Format(time.RFC3339))
 
 		// 방에 재접속 알림
@@ -101,8 +100,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 		return
 	}
 
-	fmt.Printf(
-		"[Identified] ID: %s | Name: %s | IP: %s | Time: %s\n",
+	log.Logger.Infof("[Identified] ID: %s | Name: %s | IP: %s | Time: %s",
 		u.ID, u.Name, u.IP, u.ConnectedAt.Format(time.RFC3339),
 	)
 

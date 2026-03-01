@@ -46,7 +46,7 @@ func LoadErrorMessages() error {
 	mu.Lock()
 	defer mu.Unlock()
 	globalErrorMessages = loadedMessages
-	fmt.Println("Error messages loaded successfully from embedded file!", globalErrorMessages)
+	fmt.Fprintf(os.Stderr, "Error messages loaded successfully (%d codes)\n", len(globalErrorMessages))
 	return nil
 }
 

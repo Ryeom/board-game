@@ -2,14 +2,15 @@ package ws
 
 import (
 	"encoding/json"
-	"fmt"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/user"
 	"github.com/Ryeom/board-game/log"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/spf13/viper"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,7 +18,23 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		allowed := viper.GetString("server.allowed-origins")
+		if allowed == "" || allowed == "*" {
+			return true
+		}
+		for _, o := range strings.Split(allowed, ",") {
+			if strings.TrimSpace(o) == origin {
+				return true
+			}
+		}
+		log.Logger.Warningf("WebSocket origin rejected: %s", origin)
+		return false
+	},
 }
 
 var activeSessions sync.Map
@@ -44,8 +61,7 @@ func Websocket(c echo.Context) error {
 
 	activeSessions.Store(currentUserSession.ID, currentUserSession)
 
-	fmt.Printf(
-		"[Initial Conn] ID: %s | IP: %s | Time: %s\n",
+	log.Logger.Debugf("[Initial Conn] ID: %s | IP: %s | Time: %s",
 		currentUserSession.ID, currentUserSession.IP, currentUserSession.ConnectedAt.Format(time.RFC3339),
 	)
 

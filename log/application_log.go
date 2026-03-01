@@ -53,7 +53,7 @@ func checkFilePath(filePath string) {
 		if createErr != nil {
 			panic(createErr)
 		}
-		fmt.Println("created ", file.Name())
+		fmt.Fprintf(os.Stderr, "created %s\n", file.Name())
 	}
 }
 

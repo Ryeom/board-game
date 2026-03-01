@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"github.com/Ryeom/board-game/log"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
@@ -13,7 +12,7 @@ var DB *gorm.DB
 
 func Initialize() {
 	dsn := viper.GetString("db.dsn")
-	fmt.Println(dsn)
+	log.Logger.Debugf("DB connection initialized")
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Logger.Fatalf("failed to connect: %v", err)

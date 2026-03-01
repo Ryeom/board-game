@@ -15,15 +15,25 @@ import (
 	"github.com/Ryeom/board-game/server/ws"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/spf13/viper"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"net/http"
+	"strings"
 	"time"
 )
 
 func Initialize(e *echo.Echo) {
 
 	e.Validator = util.NewValidator()
-	e.Use(middleware.CORS())
+	allowedOrigins := viper.GetString("server.allowed-origins")
+	if allowedOrigins == "" || allowedOrigins == "*" {
+		e.Use(middleware.CORS())
+	} else {
+		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins: strings.Split(allowedOrigins, ","),
+			AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		}))
+	}
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(l.CreateCustomLogConfig()))
 

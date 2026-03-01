@@ -89,8 +89,7 @@ func ListRooms(ctx context.Context) []*Room {
 }
 
 func (r *Room) Save() error {
-	redisutil.SaveJSON("room", "room:"+r.ID, r, 0)
-	return nil
+	return redisutil.SaveJSON("room", "room:"+r.ID, r, 0)
 }
 func (r *Room) Join(ctx context.Context, userID string, password string) (bool, error) {
 	// 1. 방 참여 인원 제한 확인

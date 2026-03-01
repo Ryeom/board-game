@@ -47,8 +47,7 @@ func NewUserSession(socketID, name, roomID, ip, userAgent string, isHost bool, c
 
 // SaveUserSession 사용자 세션을 Redis에 저장
 func SaveUserSession(session *Session) error {
-	redisutil.SaveJSON(redisutil.RedisTargetUser, sessionKey(session.ID), session, sessionTTL)
-	return nil
+	return redisutil.SaveJSON(redisutil.RedisTargetUser, sessionKey(session.ID), session, sessionTTL)
 }
 
 // GetSession socketID로 사용자 세션을 조회
