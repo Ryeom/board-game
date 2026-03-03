@@ -1034,6 +1034,51 @@
     "httpStatus": 200,
     "severity": "Info"
   },
+  "SUCCESS_GAME_TIMER_STARTED": {
+    "ko": {
+      "message": "턴 타이머가 시작되었습니다.",
+      "action": "제한 시간 내에 행동을 수행해주세요."
+    },
+    "en": {
+      "message": "Turn timer has started.",
+      "action": "Please perform your action within the time limit."
+    },
+    "developerMessage": "게임 턴 타이머 시작.",
+    "service": "Game",
+    "type": "Success",
+    "httpStatus": 200,
+    "severity": "Info"
+  },
+  "SUCCESS_GAME_TIMER_RESET": {
+    "ko": {
+      "message": "턴 타이머가 리셋되었습니다.",
+      "action": "다음 턴의 제한 시간이 시작됩니다."
+    },
+    "en": {
+      "message": "Turn timer has been reset.",
+      "action": "The next turn's time limit begins now."
+    },
+    "developerMessage": "게임 턴 타이머 리셋.",
+    "service": "Game",
+    "type": "Success",
+    "httpStatus": 200,
+    "severity": "Info"
+  },
+  "SUCCESS_GAME_TIMER_EXPIRED": {
+    "ko": {
+      "message": "턴 제한 시간이 초과되어 자동 액션이 수행됩니다.",
+      "action": ""
+    },
+    "en": {
+      "message": "Turn time expired. An automatic action will be performed.",
+      "action": ""
+    },
+    "developerMessage": "턴 타이머 만료, 자동 액션 실행.",
+    "service": "Game",
+    "type": "Success",
+    "httpStatus": 200,
+    "severity": "Info"
+  },
   "SUCCESS_ROOM_CREATE": {
     "ko": {
       "message": "방이 성공적으로 생성되었습니다.",

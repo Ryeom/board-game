@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Ryeom/board-game/internal/domain/tilepush"
 	"github.com/Ryeom/board-game/log"
 )
+
+const TurnDuration = 30 * time.Second
 
 type Event struct {
 	Type string
@@ -194,4 +197,40 @@ func (e *Engine) IsGameOver() bool {
 }
 func (e *Engine) SetBoardDimensions(rows, columns int) {
 
+}
+
+func (e *Engine) GetTurnDuration() time.Duration {
+	return TurnDuration
+}
+
+// ExecuteForceAction 타임아웃 시 턴을 스킵하고 다음 플레이어에게 넘긴다.
+func (e *Engine) ExecuteForceAction() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.CurrentState == nil || e.CurrentState.GameOver {
+		return nil
+	}
+
+	currentPlayerID := e.CurrentState.CurrentTurnPlayerID
+	currentIndex := -1
+	for i, p := range e.Players {
+		if p == currentPlayerID {
+			currentIndex = i
+			break
+		}
+	}
+	if currentIndex == -1 {
+		return fmt.Errorf("current player not found")
+	}
+
+	e.CurrentState.CurrentTurnPlayerID = e.Players[(currentIndex+1)%len(e.Players)]
+	log.Logger.Debugf("[TilePush] ForceAction: skip turn from %s to %s", currentPlayerID, e.CurrentState.CurrentTurnPlayerID)
+
+	if saveErr := e.SetGameState(e.CurrentState); saveErr != nil {
+		log.Logger.Errorf("[TilePush] Error saving state after force action: %v", saveErr)
+	}
+
+	e.Broadcast("game.action.sync", e.Players, e.CurrentState)
+	return nil
 }

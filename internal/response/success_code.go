@@ -29,9 +29,12 @@ const (
 
 	SuccessCodeSystemErrorReceived = "SUCCESS_SYSTEM_ERROR_RECEIVED"
 
-	SuccessCodeGameStart  = "SUCCESS_GAME_START"
-	SuccessCodeGameEnd    = "SUCCESS_GAME_END"
-	SuccessCodeGameAction = "SUCCESS_GAME_ACTION"
-	SuccessCodeGameSync   = "SUCCESS_GAME_SYNC"
-	SuccessCodeGameInfo   = "SUCCESS_GAME_INFO"
+	SuccessCodeGameStart        = "SUCCESS_GAME_START"
+	SuccessCodeGameEnd          = "SUCCESS_GAME_END"
+	SuccessCodeGameAction       = "SUCCESS_GAME_ACTION"
+	SuccessCodeGameSync         = "SUCCESS_GAME_SYNC"
+	SuccessCodeGameInfo         = "SUCCESS_GAME_INFO"
+	SuccessCodeGameTimerStarted = "SUCCESS_GAME_TIMER_STARTED"
+	SuccessCodeGameTimerReset   = "SUCCESS_GAME_TIMER_RESET"
+	SuccessCodeGameTimerExpired = "SUCCESS_GAME_TIMER_EXPIRED"
 )

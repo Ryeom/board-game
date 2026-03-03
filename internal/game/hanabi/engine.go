@@ -2,10 +2,14 @@ package hanabi
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/Ryeom/board-game/log"
 )
+
+const TurnDuration = 60 * time.Second
 
 type Event struct {
 	Type string
@@ -321,5 +325,60 @@ func (e *Engine) handleEndTurn() error {
 	if len(e.CurrentState.Deck) == 0 && e.CurrentState.LastPlayer != -1 && e.CurrentState.TurnIndex == (e.CurrentState.LastPlayer+1)%len(e.Players) {
 		e.CurrentState.GameOver = true
 	}
+	return nil
+}
+
+func (e *Engine) GetTurnDuration() time.Duration {
+	return TurnDuration
+}
+
+// ExecuteForceAction 타임아웃 시 자동 액션을 원자적으로 실행한다.
+// 힌트 토큰이 만석이면 play_card, 아니면 discard 후 end_turn.
+func (e *Engine) ExecuteForceAction() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.CurrentState == nil || e.CurrentState.IsGameOver() {
+		return nil
+	}
+
+	playerID := e.currentPlayerID()
+	hand := e.CurrentState.PlayerHands[playerID]
+	if len(hand) == 0 {
+		return nil
+	}
+
+	cardIndex := rand.Intn(len(hand))
+	data := map[string]any{
+		"playerId":  playerID,
+		"cardIndex": float64(cardIndex),
+	}
+
+	var err error
+	if e.CurrentState.HintTokens >= MaxHintTokens {
+		log.Logger.Debugf("[Hanabi] ForceAction: play_card (hint tokens full) player=%s index=%d", playerID, cardIndex)
+		err = e.handlePlayCard(data)
+	} else {
+		log.Logger.Debugf("[Hanabi] ForceAction: discard player=%s index=%d", playerID, cardIndex)
+		err = e.handleDiscardCard(data)
+	}
+	if err != nil {
+		return fmt.Errorf("force action failed: %w", err)
+	}
+
+	if err := e.handleEndTurn(); err != nil {
+		return fmt.Errorf("force end_turn failed: %w", err)
+	}
+
+	if e.CurrentState != nil {
+		if saveErr := e.SetGameState(e.CurrentState); saveErr != nil {
+			log.Logger.Errorf("[Hanabi] Error saving state after force action: %v", saveErr)
+		}
+	}
+
+	if !e.CurrentState.IsGameOver() {
+		e.Broadcast("game.action.sync", e.Players, e.CurrentState)
+	}
+
 	return nil
 }

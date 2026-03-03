@@ -485,6 +485,106 @@ func TestGameFlow_MissTokenDepletion(t *testing.T) {
 	}
 }
 
+func TestExecuteForceAction_Discard(t *testing.T) {
+	players := []string{"p1", "p2"}
+	var broadcastCalled bool
+	engine := NewEngine(players,
+		func(eventName string, playerIDs []string, state any) { broadcastCalled = true },
+		func(state *State) error { return nil },
+		func() *State { return nil },
+	)
+
+	// 덱에 카드를 남겨서 게임이 안 끝나게 함
+	deck := []*Card{
+		{Color: Yellow, Number: 1},
+		{Color: Yellow, Number: 2},
+	}
+	state := NewState(deck)
+	state.GameStarted = true
+	state.TurnIndex = 0
+	state.LastPlayer = -1
+	state.HintTokens = 5 // 만석 아님 → discard 실행
+	state.PlayerHands["p1"] = []*Card{
+		{Color: Red, Number: 1},
+		{Color: Blue, Number: 2},
+	}
+	state.PlayerHands["p2"] = []*Card{
+		{Color: Green, Number: 3},
+	}
+	engine.CurrentState = state
+
+	err := engine.ExecuteForceAction()
+	if err != nil {
+		t.Fatalf("ExecuteForceAction 실패: %v", err)
+	}
+
+	// 카드 1장 버려지고 덱에서 1장 보충 → 여전히 2장
+	if len(state.PlayerHands["p1"]) != 2 {
+		t.Errorf("p1 카드가 2장이어야 하지만 %d장", len(state.PlayerHands["p1"]))
+	}
+	// 힌트 토큰 증가
+	if state.HintTokens != 6 {
+		t.Errorf("힌트 토큰이 6이어야 하지만 %d", state.HintTokens)
+	}
+	// 턴이 넘어감 (p2 차례)
+	if state.TurnIndex != 1 {
+		t.Errorf("TurnIndex가 1이어야 하지만 %d", state.TurnIndex)
+	}
+	if !broadcastCalled {
+		t.Error("브로드캐스트가 호출되어야 함")
+	}
+}
+
+func TestExecuteForceAction_PlayCard_WhenHintTokensFull(t *testing.T) {
+	players := []string{"p1", "p2"}
+	engine := newTestEngine(players)
+
+	state := newTestState()
+	state.HintTokens = MaxHintTokens // 만석 → play_card 폴백
+	state.Fireworks[Red] = 0
+	state.PlayerHands["p1"] = []*Card{
+		{Color: Red, Number: 2}, // Red 0 위에 2 → 실패 → 미스 토큰 감소
+	}
+	state.PlayerHands["p2"] = []*Card{
+		{Color: Green, Number: 1},
+	}
+	engine.CurrentState = state
+
+	err := engine.ExecuteForceAction()
+	if err != nil {
+		t.Fatalf("ExecuteForceAction 실패: %v", err)
+	}
+
+	// play_card 실행됨: Red 2를 Fireworks[Red]=0 위에 놓으면 실패
+	if state.MissTokens != InitialMissTokens-1 {
+		t.Errorf("미스 토큰이 %d이어야 하지만 %d", InitialMissTokens-1, state.MissTokens)
+	}
+	// 턴이 넘어감
+	if state.TurnIndex != 1 {
+		t.Errorf("TurnIndex가 1이어야 하지만 %d", state.TurnIndex)
+	}
+}
+
+func TestExecuteForceAction_GameOver_NoOp(t *testing.T) {
+	players := []string{"p1", "p2"}
+	engine := newTestEngine(players)
+
+	state := newTestState()
+	state.GameOver = true
+	state.PlayerHands["p1"] = []*Card{{Color: Red, Number: 1}}
+	state.PlayerHands["p2"] = []*Card{{Color: Blue, Number: 2}}
+	engine.CurrentState = state
+
+	err := engine.ExecuteForceAction()
+	if err != nil {
+		t.Fatalf("게임 종료 상태에서 에러가 발생하면 안됨: %v", err)
+	}
+	// 카드가 그대로 유지되어야 함
+	if len(state.PlayerHands["p1"]) != 1 {
+		t.Errorf("게임 종료 상태에서 카드가 변경되면 안됨")
+	}
+}
+
 func TestDiscard_WhenHintTokensNotFull(t *testing.T) {
 	players := []string{"p1", "p2"}
 	engine := newTestEngine(players)

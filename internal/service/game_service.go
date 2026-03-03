@@ -96,6 +96,18 @@ func (s *GameService) StartGame(ctx context.Context, roomID string, userID strin
 	engine.StartGame()
 	s.Manager.AddEngine(r.ID, engine)
 
+	// 턴 타이머 생성 및 시작
+	if turnDuration := engine.GetTurnDuration(); turnDuration > 0 {
+		timer := game.NewTurnTimer(r.ID, turnDuration, s.handleTimerExpired)
+		s.Manager.SetTimer(r.ID, timer)
+		timer.Start()
+
+		s.Broadcaster.BroadcastToRoom(r.ID, "game.timer.started", map[string]any{
+			"roomId":       r.ID,
+			"durationSecs": int(turnDuration.Seconds()),
+		}, resp.SuccessCodeGameTimerStarted)
+	}
+
 	r.IsGameStarted = true
 	r.ResetReady()
 	if err := r.Save(); err != nil {
@@ -202,6 +214,15 @@ func (s *GameService) ProcessAction(ctx context.Context, roomID string, userID s
 		return nil
 	}
 
+	// 턴 타이머 리셋
+	if timer, ok := s.Manager.GetTimer(roomID); ok {
+		timer.Reset()
+		s.Broadcaster.BroadcastToRoom(roomID, "game.timer.reset", map[string]any{
+			"roomId":       roomID,
+			"durationSecs": int(engine.GetTurnDuration().Seconds()),
+		}, resp.SuccessCodeGameTimerReset)
+	}
+
 	payload := map[string]any{
 		"roomId":     r.ID,
 		"gameMode":   r.GameMode,
@@ -266,5 +287,52 @@ func (s *GameService) GetGameInfo(gameModeStr string) (game.Mode, map[string]any
 		return gameMode, info, nil
 	default:
 		return "", nil, fmt.Errorf(resp.ErrorCodeRoomUnsupportedGameMode)
+	}
+}
+
+// handleTimerExpired 턴 타이머 만료 시 자동 액션을 수행한다.
+func (s *GameService) handleTimerExpired(roomID string) {
+	engine, ok := s.Manager.GetEngine(roomID)
+	if !ok {
+		return
+	}
+
+	s.Broadcaster.BroadcastToRoom(roomID, "game.timer.expired", map[string]any{
+		"roomId": roomID,
+	}, resp.SuccessCodeGameTimerExpired)
+
+	if err := engine.ExecuteForceAction(); err != nil {
+		log.Logger.Errorf("Timer auto-action failed for room %s: %v", roomID, err)
+		return
+	}
+
+	if engine.IsGameOver() {
+		log.Logger.Infof("Game in room %s ended after timer auto-action.", roomID)
+		engine.EndGame()
+
+		s.Manager.RemoveEngine(roomID)
+
+		ctx := context.Background()
+		r, ok := room.GetRoom(ctx, roomID)
+		if ok {
+			if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
+				log.Logger.Errorf("handleTimerExpired - Failed to delete game state: %v", err)
+			}
+			r.IsGameStarted = false
+			r.ResetReady()
+			if err := r.Save(); err != nil {
+				log.Logger.Errorf("handleTimerExpired - Failed to save room state: %v", err)
+			}
+		}
+		return
+	}
+
+	// 타이머 리셋 (다음 턴)
+	if timer, ok := s.Manager.GetTimer(roomID); ok {
+		timer.Reset()
+		s.Broadcaster.BroadcastToRoom(roomID, "game.timer.reset", map[string]any{
+			"roomId":       roomID,
+			"durationSecs": int(engine.GetTurnDuration().Seconds()),
+		}, resp.SuccessCodeGameTimerReset)
 	}
 }
