@@ -109,6 +109,15 @@ func (e *Engine) HandleEvent(event any) error {
 	return nil
 }
 
+func (e *Engine) playerIndex(playerID string) int {
+	for i, p := range e.Players {
+		if p == playerID {
+			return i
+		}
+	}
+	return -1
+}
+
 func (e *Engine) handleTilePush(data map[string]any) error {
 	// 1. 현재 턴 플레이어인지 확인
 	playerID, ok := data["playerId"].(string)
@@ -167,13 +176,7 @@ func (e *Engine) handleTilePush(data map[string]any) error {
 		log.Logger.Debugf("[TilePush] Player %s pushed a matching tile (%s). Turn stays with %s.", playerID, drawnTile.Shape, playerID)
 	} else {
 		// 턴 넘기기
-		currentIndex := -1
-		for i, p := range e.Players {
-			if p == playerID {
-				currentIndex = i
-				break
-			}
-		}
+		currentIndex := e.playerIndex(playerID)
 		if currentIndex != -1 {
 			e.CurrentState.CurrentTurnPlayerID = e.Players[(currentIndex+1)%len(e.Players)]
 			log.Logger.Debugf("[TilePush] Player %s pushed a non-matching tile (%s vs %s). Turn passes to %s.", playerID, drawnTile.Shape, pushedOutTile.Shape, e.CurrentState.CurrentTurnPlayerID)
@@ -213,13 +216,7 @@ func (e *Engine) ExecuteForceAction() error {
 	}
 
 	currentPlayerID := e.CurrentState.CurrentTurnPlayerID
-	currentIndex := -1
-	for i, p := range e.Players {
-		if p == currentPlayerID {
-			currentIndex = i
-			break
-		}
-	}
+	currentIndex := e.playerIndex(currentPlayerID)
 	if currentIndex == -1 {
 		return fmt.Errorf("current player not found")
 	}

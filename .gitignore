@@ -4,3 +4,5 @@ hanabi_log
 # Local cache directories
 .cache/
 .modcache/
+
+.idea

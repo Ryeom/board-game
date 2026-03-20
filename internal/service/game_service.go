@@ -138,18 +138,7 @@ func (s *GameService) EndGame(ctx context.Context, roomID string, userID string)
 		return fmt.Errorf(resp.ErrorCodeRoomNotHost)
 	}
 
-	s.Manager.RemoveEngine(r.ID)
-
-	if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
-		log.Logger.Errorf("EndGame - Failed to delete game state: %v", err)
-		return fmt.Errorf(resp.ErrorCodeGameStateNotDeleted)
-	}
-
-	r.IsGameStarted = false
-	r.ResetReady()
-	if err := r.Save(); err != nil {
-		return fmt.Errorf(resp.ErrorCodeGameInfoNotSaved)
-	}
+	s.cleanupGame(ctx, r)
 
 	payload := map[string]any{
 		"roomId":     r.ID,
@@ -197,20 +186,8 @@ func (s *GameService) ProcessAction(ctx context.Context, roomID string, userID s
 
 	if specificEngine.IsGameOver() {
 		log.Logger.Infof("Game in room %s ended automatically.", roomID)
-
-		// 엔진이 플레이어별 뷰로 game.end 브로드캐스트
 		specificEngine.EndGame()
-
-		// 정리: 엔진 제거, 게임 상태 삭제, 방 상태 업데이트
-		s.Manager.RemoveEngine(r.ID)
-		if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
-			log.Logger.Errorf("ProcessAction - Failed to delete game state: %v", err)
-		}
-		r.IsGameStarted = false
-		r.ResetReady()
-		if err := r.Save(); err != nil {
-			log.Logger.Errorf("ProcessAction - Failed to save room state: %v", err)
-		}
+		s.cleanupGame(ctx, r)
 		return nil
 	}
 
@@ -290,6 +267,18 @@ func (s *GameService) GetGameInfo(gameModeStr string) (game.Mode, map[string]any
 	}
 }
 
+func (s *GameService) cleanupGame(ctx context.Context, r *room.Room) {
+	s.Manager.RemoveEngine(r.ID)
+	if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
+		log.Logger.Errorf("cleanupGame - Failed to delete game state: %v", err)
+	}
+	r.IsGameStarted = false
+	r.ResetReady()
+	if err := r.Save(); err != nil {
+		log.Logger.Errorf("cleanupGame - Failed to save room state: %v", err)
+	}
+}
+
 // handleTimerExpired 턴 타이머 만료 시 자동 액션을 수행한다.
 func (s *GameService) handleTimerExpired(roomID string) {
 	engine, ok := s.Manager.GetEngine(roomID)
@@ -310,19 +299,10 @@ func (s *GameService) handleTimerExpired(roomID string) {
 		log.Logger.Infof("Game in room %s ended after timer auto-action.", roomID)
 		engine.EndGame()
 
-		s.Manager.RemoveEngine(roomID)
-
 		ctx := context.Background()
 		r, ok := room.GetRoom(ctx, roomID)
 		if ok {
-			if err := game.DeleteGameState(ctx, r.GameMode, r.ID); err != nil {
-				log.Logger.Errorf("handleTimerExpired - Failed to delete game state: %v", err)
-			}
-			r.IsGameStarted = false
-			r.ResetReady()
-			if err := r.Save(); err != nil {
-				log.Logger.Errorf("handleTimerExpired - Failed to save room state: %v", err)
-			}
+			s.cleanupGame(ctx, r)
 		}
 		return
 	}

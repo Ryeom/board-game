@@ -41,6 +41,9 @@ func (m *Manager) RemoveEngine(roomID string) {
 func (m *Manager) SetTimer(roomID string, timer *TurnTimer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if old, ok := m.timers[roomID]; ok {
+		old.Stop()
+	}
 	m.timers[roomID] = timer
 }
 

@@ -127,6 +127,27 @@ func (e *Engine) HandleEvent(event any) error {
 	return nil
 }
 
+// drawCard 덱에서 카드를 뽑아 플레이어 손에 추가하고, 덱이 비면 LastPlayer를 설정한다.
+func (e *Engine) drawCard(playerID string) {
+	if len(e.CurrentState.Deck) > 0 {
+		orig := e.CurrentState.Deck[0]
+		e.CurrentState.PlayerHands[playerID] = append(e.CurrentState.PlayerHands[playerID], &Card{
+			Color:  orig.Color,
+			Number: orig.Number,
+		})
+		e.CurrentState.Deck = e.CurrentState.Deck[1:]
+	} else {
+		if e.CurrentState.LastPlayer == -1 {
+			for i, pID := range e.Players {
+				if pID == playerID {
+					e.CurrentState.LastPlayer = i
+					break
+				}
+			}
+		}
+	}
+}
+
 // currentPlayerID 현재 턴인 플레이어의 ID를 반환
 func (e *Engine) currentPlayerID() string {
 	return e.Players[e.CurrentState.TurnIndex]
@@ -223,27 +244,7 @@ func (e *Engine) handlePlayCard(data map[string]any) error {
 	card := hand[index]
 
 	e.CurrentState.PlayerHands[playerID] = append(hand[:index], hand[index+1:]...)
-
-	if len(e.CurrentState.Deck) > 0 {
-		newCardOriginal := e.CurrentState.Deck[0]
-		newCardCopy := &Card{
-			Color:       newCardOriginal.Color,
-			Number:      newCardOriginal.Number,
-			ColorKnown:  false,
-			NumberKnown: false,
-		}
-		e.CurrentState.PlayerHands[playerID] = append(e.CurrentState.PlayerHands[playerID], newCardCopy)
-		e.CurrentState.Deck = e.CurrentState.Deck[1:]
-	} else {
-		if e.CurrentState.LastPlayer == -1 {
-			for i, pID := range e.Players {
-				if pID == playerID {
-					e.CurrentState.LastPlayer = i
-					break
-				}
-			}
-		}
-	}
+	e.drawCard(playerID)
 
 	if e.CurrentState.Fireworks[card.Color]+1 == card.Number {
 		e.CurrentState.Fireworks[card.Color] = card.Number
@@ -287,27 +288,7 @@ func (e *Engine) handleDiscardCard(data map[string]any) error {
 	e.CurrentState.DiscardPile = append(e.CurrentState.DiscardPile, card)
 
 	e.CurrentState.PlayerHands[playerID] = append(hand[:index], hand[index+1:]...)
-
-	if len(e.CurrentState.Deck) > 0 {
-		newCardOriginal := e.CurrentState.Deck[0]
-		newCardCopy := &Card{
-			Color:       newCardOriginal.Color,
-			Number:      newCardOriginal.Number,
-			ColorKnown:  false,
-			NumberKnown: false,
-		}
-		e.CurrentState.PlayerHands[playerID] = append(e.CurrentState.PlayerHands[playerID], newCardCopy)
-		e.CurrentState.Deck = e.CurrentState.Deck[1:]
-	} else {
-		if e.CurrentState.LastPlayer == -1 {
-			for i, pID := range e.Players {
-				if pID == playerID {
-					e.CurrentState.LastPlayer = i
-					break
-				}
-			}
-		}
-	}
+	e.drawCard(playerID)
 
 	if e.CurrentState.HintTokens < MaxHintTokens {
 		e.CurrentState.HintTokens++
