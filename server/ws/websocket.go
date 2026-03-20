@@ -48,6 +48,7 @@ func Websocket(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
 	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	conn.SetPongHandler(func(string) error {
@@ -64,6 +65,20 @@ func Websocket(c echo.Context) error {
 	log.Logger.Debugf("[Initial Conn] ID: %s | IP: %s | Time: %s",
 		currentUserSession.ID, currentUserSession.IP, currentUserSession.ConnectedAt.Format(time.RFC3339),
 	)
+
+	// 서버 → 클라이언트 Ping ticker
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	go func() {
+		for range ticker.C {
+			currentUserSession.WriteMutex.Lock()
+			err := conn.WriteMessage(websocket.PingMessage, nil)
+			currentUserSession.WriteMutex.Unlock()
+			if err != nil {
+				return
+			}
+		}
+	}()
 
 	for {
 		_, msg, err := conn.ReadMessage()
