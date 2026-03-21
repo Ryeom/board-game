@@ -147,9 +147,6 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		if err := user.DeleteUserSession(u.ID); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (no room): %v", u.ID, err)
 		}
-		if u.Conn != nil {
-			_ = u.Conn.Close()
-		}
 		return
 	}
 
@@ -158,9 +155,6 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		log.Logger.Warningf("HandleUserDisconnect - Room %s not found for user %s. Cleaning up session.", u.RoomID, u.ID)
 		if err := user.DeleteUserSession(u.ID); err != nil {
 			log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s (room not found): %v", u.ID, err)
-		}
-		if u.Conn != nil {
-			_ = u.Conn.Close()
 		}
 		return
 	}
@@ -226,9 +220,6 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 	u.Status = "disconnected"
 	if err := user.DeleteUserSession(u.ID); err != nil {
 		log.Logger.Errorf("HandleUserDisconnect - Failed to delete user session %s: %v", u.ID, err)
-	}
-	if u.Conn != nil {
-		_ = u.Conn.Close()
 	}
 }
 
