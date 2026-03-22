@@ -68,14 +68,23 @@ func Websocket(c echo.Context) error {
 
 	// 서버 → 클라이언트 Ping ticker
 	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+	done := make(chan struct{})
+	defer func() {
+		close(done)
+		ticker.Stop()
+	}()
 	go func() {
-		for range ticker.C {
-			currentUserSession.WriteMutex.Lock()
-			err := conn.WriteMessage(websocket.PingMessage, nil)
-			currentUserSession.WriteMutex.Unlock()
-			if err != nil {
+		for {
+			select {
+			case <-done:
 				return
+			case <-ticker.C:
+				currentUserSession.WriteMutex.Lock()
+				err := conn.WriteMessage(websocket.PingMessage, nil)
+				currentUserSession.WriteMutex.Unlock()
+				if err != nil {
+					return
+				}
 			}
 		}
 	}()
