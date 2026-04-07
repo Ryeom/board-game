@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 
+	"github.com/Ryeom/board-game/internal/ai"
 	"github.com/Ryeom/board-game/internal/game"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/service"
@@ -13,6 +14,9 @@ import (
 type WsBroadcaster struct{}
 
 func (b *WsBroadcaster) SendToPlayer(playerID string, eventName string, payload any, msgCode string) {
+	if ai.IsAIPlayer(playerID) {
+		return
+	}
 	res := createWebSocketResult(eventName, payload, msgCode, "ko")
 	GlobalBroadcaster.SendToPlayer(playerID, res)
 }
