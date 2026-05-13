@@ -96,21 +96,29 @@ func (e *Engine) HandleEvent(event any) error {
 	}
 	log.Logger.Debugf("[Hanabi] HandleEvent - Type: %s", cast.Type)
 	var err error
+	advanceTurn := false
 	switch cast.Type {
 	case "give_hint":
 		err = e.handleGiveHint(cast.Data)
+		advanceTurn = true
 	case "play_card":
 		err = e.handlePlayCard(cast.Data)
+		advanceTurn = true
 	case "discard":
 		err = e.handleDiscardCard(cast.Data)
-	case "end_turn":
-		err = e.handleEndTurn()
+		advanceTurn = true
 	default:
 		return fmt.Errorf("unknown event type: %s", cast.Type)
 	}
 
 	if err != nil {
 		return err
+	}
+
+	if advanceTurn && !e.CurrentState.IsGameOver() {
+		if err := e.handleEndTurn(); err != nil {
+			return err
+		}
 	}
 
 	// 상태 저장

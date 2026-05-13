@@ -473,17 +473,6 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
 		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
 
-		SendEvent(t, connA, WSEvent{
-			Type: "game.action",
-			Data: map[string]interface{}{
-				"actionType": "end_turn",
-			},
-		})
-		// A gets action success response
-		_ = ReadEvent(t, connA, 10*time.Second)
-		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
-		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
-
 		SendEvent(t, connB, WSEvent{
 			Type: "game.action",
 			Data: map[string]interface{}{
@@ -492,17 +481,6 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 			},
 		})
 		// B gets action success response
-		_ = ReadEvent(t, connB, 10*time.Second)
-		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
-		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B
-
-		SendEvent(t, connB, WSEvent{
-			Type: "game.action",
-			Data: map[string]interface{}{
-				"actionType": "end_turn",
-			},
-		})
-
 		_ = ReadEvent(t, connB, 10*time.Second)
 		_ = ReadEvent(t, connA, 10*time.Second) // game.state_update A
 		_ = ReadEvent(t, connB, 10*time.Second) // game.state_update B

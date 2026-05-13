@@ -379,14 +379,8 @@ func TestGameFlow_FullCycle(t *testing.T) {
 	if engine.CurrentState.HintTokens != 7 {
 		t.Errorf("힌트 후 토큰이 7이어야 하지만 %d", engine.CurrentState.HintTokens)
 	}
-
-	// 턴 종료 → p2 차례로 전환
-	err = engine.HandleEvent(Event{Type: "end_turn", Data: map[string]any{}})
-	if err != nil {
-		t.Fatalf("턴 종료 실패: %v", err)
-	}
 	if engine.CurrentState.TurnIndex != 1 {
-		t.Errorf("턴 종료 후 TurnIndex가 1이어야 하지만 %d", engine.CurrentState.TurnIndex)
+		t.Errorf("힌트 후 TurnIndex가 1이어야 하지만 %d", engine.CurrentState.TurnIndex)
 	}
 
 	// p2가 카드 버리기 → 힌트 토큰 회복
@@ -406,10 +400,113 @@ func TestGameFlow_FullCycle(t *testing.T) {
 	if len(engine.CurrentState.DiscardPile) != 1 {
 		t.Errorf("버린 카드 더미에 1장이어야 하지만 %d장", len(engine.CurrentState.DiscardPile))
 	}
+	if engine.CurrentState.TurnIndex != 0 {
+		t.Errorf("버리기 후 TurnIndex가 0이어야 하지만 %d", engine.CurrentState.TurnIndex)
+	}
 
 	// 게임이 아직 끝나지 않았는지 확인
 	if engine.IsGameOver() {
 		t.Error("아직 게임이 종료되면 안 됨")
+	}
+}
+
+func TestHandleEvent_AutoAdvancesTurnAfterSuccessfulActions(t *testing.T) {
+	players := []string{"p1", "p2"}
+	engine := newTestEngine(players)
+
+	state := newTestState()
+	state.Deck = []*Card{{Color: Yellow, Number: 1}, {Color: Yellow, Number: 2}, {Color: White, Number: 1}}
+	state.HintTokens = 7
+	state.Fireworks[Red] = 0
+	state.PlayerHands["p1"] = []*Card{{Color: Red, Number: 1}}
+	state.PlayerHands["p2"] = []*Card{{Color: Blue, Number: 2}, {Color: Green, Number: 1}}
+	engine.CurrentState = state
+
+	if err := engine.HandleEvent(Event{
+		Type: "play_card",
+		Data: map[string]any{
+			"playerId":  "p1",
+			"cardIndex": float64(0),
+		},
+	}); err != nil {
+		t.Fatalf("play_card 실패: %v", err)
+	}
+	if state.TurnIndex != 1 {
+		t.Fatalf("play_card 후 TurnIndex가 1이어야 하지만 %d", state.TurnIndex)
+	}
+
+	if err := engine.HandleEvent(Event{
+		Type: "discard",
+		Data: map[string]any{
+			"playerId":  "p2",
+			"cardIndex": float64(0),
+		},
+	}); err != nil {
+		t.Fatalf("discard 실패: %v", err)
+	}
+	if state.TurnIndex != 0 {
+		t.Fatalf("discard 후 TurnIndex가 0이어야 하지만 %d", state.TurnIndex)
+	}
+
+	if err := engine.HandleEvent(Event{
+		Type: "give_hint",
+		Data: map[string]any{
+			"playerId": "p1",
+			"toId":     "p2",
+			"hintType": "number",
+			"value":    float64(1),
+		},
+	}); err != nil {
+		t.Fatalf("give_hint 실패: %v", err)
+	}
+	if state.TurnIndex != 1 {
+		t.Fatalf("give_hint 후 TurnIndex가 1이어야 하지만 %d", state.TurnIndex)
+	}
+}
+
+func TestHandleEvent_DoesNotAdvanceTurnAfterFailedAction(t *testing.T) {
+	players := []string{"p1", "p2"}
+	engine := newTestEngine(players)
+
+	state := newTestState()
+	state.HintTokens = 8
+	state.PlayerHands["p1"] = []*Card{{Color: Red, Number: 1}}
+	state.PlayerHands["p2"] = []*Card{{Color: Blue, Number: 2}}
+	engine.CurrentState = state
+
+	err := engine.HandleEvent(Event{
+		Type: "discard",
+		Data: map[string]any{
+			"playerId":  "p1",
+			"cardIndex": float64(0),
+		},
+	})
+	if err == nil {
+		t.Fatal("실패해야 하는 discard가 성공함")
+	}
+	if state.TurnIndex != 0 {
+		t.Fatalf("실패한 액션 후 TurnIndex가 유지되어야 하지만 %d", state.TurnIndex)
+	}
+}
+
+func TestHandleEvent_RejectsPublicEndTurnAction(t *testing.T) {
+	players := []string{"p1", "p2"}
+	engine := newTestEngine(players)
+
+	state := newTestState()
+	state.PlayerHands["p1"] = []*Card{{Color: Red, Number: 1}}
+	state.PlayerHands["p2"] = []*Card{{Color: Blue, Number: 2}}
+	engine.CurrentState = state
+
+	err := engine.HandleEvent(Event{
+		Type: "end_turn",
+		Data: map[string]any{"playerId": "p1"},
+	})
+	if err == nil {
+		t.Fatal("end_turn 공개 액션은 실패해야 함")
+	}
+	if state.TurnIndex != 0 {
+		t.Fatalf("end_turn 실패 후 TurnIndex가 유지되어야 하지만 %d", state.TurnIndex)
 	}
 }
 
