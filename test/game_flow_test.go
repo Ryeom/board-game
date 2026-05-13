@@ -26,7 +26,7 @@ func TestGameFlow(t *testing.T) {
 	})
 	roomCreatedResA := ReadEvent(t, connA, 10*time.Second)
 	assert.Equal(t, "room.create", roomCreatedResA.Type)
-	roomID := roomCreatedResA.Data.(map[string]interface{})["room_id"].(string)
+	roomID := roomCreatedResA.Data.(map[string]interface{})["roomId"].(string)
 
 	// 3. User B가 방에 참여
 	SendEvent(t, connB, WSEvent{

@@ -12,11 +12,8 @@ import (
 
 // HandleUserIdentify 유저 초기 식별 (재접속 포함)
 func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent) {
-	data := event.Data
-	requestedUserID, ok1 := data["userId"].(string)
-	userName, ok2 := data["userName"].(string)
-
-	if !ok1 || !ok2 || requestedUserID == "" || userName == "" {
+	var req UserIdentifyRequest
+	if err := bindEventData(event, &req); err != nil || req.UserID == "" || req.UserName == "" {
 		sendError(u, resp.ErrorCodeAuthInvalidRequest)
 		return
 	}
@@ -24,7 +21,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 	oldSessionID := u.ID
 
 	// 기존 세션 확인 (재접속 감지)
-	prevSession, err := user.GetSession(requestedUserID)
+	prevSession, err := user.GetSession(req.UserID)
 	if err == nil && prevSession != nil && prevSession.Status == "disconnected" && prevSession.RoomID != "" {
 		// 재접속: 기존 세션 정보 복원하되 새 연결 사용
 		u.ID = prevSession.ID
@@ -52,7 +49,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 
 		// 방에 재접속 알림
 		GlobalBroadcaster.BroadcastToRoom(u.RoomID, map[string]any{
-			"type": "user.reconnected",
+			"type": EventUserReconnected,
 			"data": map[string]string{
 				"userId":   u.ID,
 				"userName": u.Name,
@@ -64,7 +61,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 		if roomOk && r.IsGameStarted {
 			state, gameMode, gsErr := GlobalGameService.GetGameState(ctx, u.RoomID, u.ID)
 			if gsErr == nil {
-				sendResult(u, "game.sync", map[string]any{
+				sendResult(u, EventGameSync, map[string]any{
 					"roomId":      u.RoomID,
 					"gameMode":    gameMode,
 					"gameState":   state,
@@ -73,7 +70,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 			}
 		}
 
-		sendResult(u, "user.identify", map[string]any{
+		sendResult(u, EventUserIdentify, map[string]any{
 			"userId":      u.ID,
 			"userName":    u.Name,
 			"roomId":      u.RoomID,
@@ -83,11 +80,11 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 	}
 
 	// 일반 식별 (신규 접속)
-	u.ID = requestedUserID
-	u.Name = userName
+	u.ID = req.UserID
+	u.Name = req.UserName
 	u.Status = "connected"
 
-	if oldSessionID != requestedUserID {
+	if oldSessionID != req.UserID {
 		ActiveSessions().Delete(oldSessionID)
 		ActiveSessions().Store(u.ID, u)
 	} else {
@@ -104,7 +101,7 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 		u.ID, u.Name, u.IP, u.ConnectedAt.Format(time.RFC3339),
 	)
 
-	sendResult(u, "user.identify", map[string]string{
+	sendResult(u, EventUserIdentify, map[string]string{
 		"userId":   u.ID,
 		"userName": u.Name,
 	}, resp.SuccessCodeUserIdentify)
@@ -112,16 +109,20 @@ func HandleUserIdentify(ctx context.Context, u *user.Session, event SocketEvent)
 
 // HandleUserUpdate 유저 정보 업데이트
 func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
-	data := event.Data
+	var req UserUpdateRequest
+	if err := bindEventData(event, &req); err != nil {
+		sendError(u, resp.ErrorCodeUserInvalidRequest)
+		return
+	}
 	updated := map[string]string{}
 
-	if name, ok := data["name"].(string); ok && name != "" {
-		u.Name = name
-		updated["name"] = name
+	if req.Name != "" {
+		u.Name = req.Name
+		updated["name"] = req.Name
 	}
-	if status, ok := data["status"].(string); ok {
-		u.Status = status
-		updated["status"] = status
+	if req.Status != "" {
+		u.Status = req.Status
+		updated["status"] = req.Status
 	}
 
 	if len(updated) == 0 {
@@ -135,7 +136,7 @@ func HandleUserUpdate(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	sendResult(u, "user.update", updated, resp.SuccessCodeUserUpdate)
+	sendResult(u, EventUserUpdate, updated, resp.SuccessCodeUserUpdate)
 }
 
 // HandleUserDisconnect 유저 연결 종료
@@ -169,7 +170,7 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 		log.Logger.Infof("Player %s disconnected during game in room %s. Session preserved for reconnection.", u.ID, r.ID)
 
 		GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
-			"type": "user.disconnected",
+			"type": EventUserDisconnected,
 			"data": map[string]string{
 				"userId":   u.ID,
 				"userName": u.Name,
@@ -207,7 +208,7 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 			log.Logger.Errorf("HandleUserDisconnect - Failed to save room %s after disconnect: %v", r.ID, err)
 		}
 		GlobalBroadcaster.BroadcastToRoom(r.ID, map[string]any{
-			"type": "user.left",
+			"type": EventUserLeft,
 			"data": map[string]string{
 				"userId":   u.ID,
 				"userName": u.Name,
@@ -225,13 +226,13 @@ func HandleUserDisconnect(ctx context.Context, u *user.Session, event SocketEven
 
 // HandleUserStatus 유저 상태 조회
 func HandleUserStatus(ctx context.Context, u *user.Session, event SocketEvent) {
-	targetID, ok := event.Data["userId"].(string)
-	if !ok || targetID == "" {
+	var req UserStatusRequest
+	if err := bindEventData(event, &req); err != nil || req.UserID == "" {
 		sendError(u, resp.ErrorCodeUserInvalidRequest)
 		return
 	}
 
-	val, found := ActiveSessions().Load(targetID)
+	val, found := ActiveSessions().Load(req.UserID)
 	if !found {
 		sendResult(u, event.Type, map[string]any{
 			"online": false,
@@ -241,7 +242,7 @@ func HandleUserStatus(ctx context.Context, u *user.Session, event SocketEvent) {
 
 	target, ok := val.(*user.Session)
 	if !ok {
-		log.Logger.Errorf("HandleUserStatus: Found non-session type in activeSessions for ID %s", targetID)
+		log.Logger.Errorf("HandleUserStatus: Found non-session type in activeSessions for ID %s", req.UserID)
 		sendError(u, resp.ErrorCodeUserProfileFetchFailed)
 		return
 	}

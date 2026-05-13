@@ -22,10 +22,10 @@ func TestWebSocketConnectionAndIdentify(t *testing.T) {
 	// 2. Client sends "system.ping" request.
 	SendEvent(t, conn, WSEvent{Type: "system.ping"})
 
-	// 3. Second ReadEvent (client expects server's "pong" response)
+	// 3. Second ReadEvent (client expects server's "system.pong" response)
 	resPong := ReadEvent(t, conn, 10*time.Second)
 	// 4. Assertions
-	assert.Equal(t, "pong", resPong.Type)
+	assert.Equal(t, "system.pong", resPong.Type)
 	assert.Equal(t, "pong", resPong.Data.(map[string]interface{})["message"])
 }
 
@@ -52,7 +52,7 @@ func TestRoomCreationAndJoin(t *testing.T) {
 		},
 	})
 
-	// room.create 응답 수신 (room_list도 함께 포함됨)
+	// room.create 응답 수신 (roomList도 함께 포함됨)
 	roomCreatedRes := ReadEvent(t, connA, 10*time.Second)
 	assert.Equal(t, "room.create", roomCreatedRes.Type)
 
@@ -61,11 +61,11 @@ func TestRoomCreationAndJoin(t *testing.T) {
 	roomCreatedDataMap, ok := roomCreatedRes.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedRes.Data should be of type map[string]interface{}")
 
-	// room_id 추출
-	roomID := roomCreatedDataMap["room_id"].(string)
+	// roomId 추출
+	roomID := roomCreatedDataMap["roomId"].(string)
 
-	// room_list 추출 및 검증
-	roomList := roomCreatedDataMap["room_list"].([]interface{})
+	// roomList 추출 및 검증
+	roomList := roomCreatedDataMap["roomList"].([]interface{})
 	assert.Len(t, roomList, 1)
 
 	// 사용자 B가 userA가 생성한 방에 참여
@@ -121,7 +121,7 @@ func TestRoomLeave(t *testing.T) {
 	assert.NotNil(t, roomCreatedResA.Data, "roomCreatedResA.Data should not be nil")
 	roomCreatedDataMap, ok := roomCreatedResA.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedResA.Data should be of type map[string]interface{}")
-	roomID := roomCreatedDataMap["room_id"].(string)
+	roomID := roomCreatedDataMap["roomId"].(string)
 
 	SendEvent(t, connB, WSEvent{
 		Type: "room.join",
@@ -182,7 +182,7 @@ func TestRoomUpdate(t *testing.T) {
 	assert.NotNil(t, roomCreatedResA.Data, "roomCreatedResA.Data should not be nil")
 	roomCreatedDataMap, ok := roomCreatedResA.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedResA.Data should be of type map[string]interface{}")
-	roomID := roomCreatedDataMap["room_id"].(string)
+	roomID := roomCreatedDataMap["roomId"].(string)
 
 	SendEvent(t, connB, WSEvent{
 		Type: "room.join",
@@ -248,7 +248,7 @@ func TestGameStartFailureNotHost(t *testing.T) {
 	assert.NotNil(t, roomCreatedResA.Data, "roomCreatedResA.Data should not be nil")
 	roomCreatedDataMap, ok := roomCreatedResA.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedResA.Data should be of type map[string]interface{}")
-	roomID := roomCreatedDataMap["room_id"].(string)
+	roomID := roomCreatedDataMap["roomId"].(string)
 
 	SendEvent(t, connB, WSEvent{
 		Type: "room.join",
@@ -296,7 +296,7 @@ func TestGameStartFailureNotEnoughPlayers(t *testing.T) {
 	assert.NotNil(t, roomCreatedResA.Data, "roomCreatedResA.Data should not be nil")
 	roomCreatedDataMap, ok := roomCreatedResA.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedResA.Data should be of type map[string]interface{}")
-	roomID := roomCreatedDataMap["room_id"].(string)
+	roomID := roomCreatedDataMap["roomId"].(string)
 
 	SendEvent(t, connA, WSEvent{
 		Type: "game.start",
@@ -329,7 +329,7 @@ func TestGameStartFailureNotAllReady(t *testing.T) {
 	assert.NotNil(t, roomCreatedResA.Data, "roomCreatedResA.Data should not be nil")
 	roomCreatedDataMap, ok := roomCreatedResA.Data.(map[string]interface{})
 	assert.True(t, ok, "roomCreatedResA.Data should be of type map[string]interface{}")
-	roomID := roomCreatedDataMap["room_id"].(string)
+	roomID := roomCreatedDataMap["roomId"].(string)
 
 	SendEvent(t, connB, WSEvent{
 		Type: "room.join",
@@ -417,7 +417,7 @@ func TestHanabiGameCompletionAndScore(t *testing.T) {
 	})
 	roomCreatedResA := ReadEvent(t, connA, 10*time.Second)
 	assert.Equal(t, "room.create", roomCreatedResA.Type)
-	roomID := roomCreatedResA.Data.(map[string]interface{})["room_id"].(string)
+	roomID := roomCreatedResA.Data.(map[string]interface{})["roomId"].(string)
 
 	// 3. User B가 방에 참여
 	SendEvent(t, connB, WSEvent{

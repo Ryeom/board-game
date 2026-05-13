@@ -17,12 +17,12 @@ func (b *WsBroadcaster) SendToPlayer(playerID string, eventName string, payload 
 	if ai.IsAIPlayer(playerID) {
 		return
 	}
-	res := createWebSocketResult(eventName, payload, msgCode, "ko")
+	res := createWebSocketResult(EventType(eventName), payload, msgCode, "ko")
 	GlobalBroadcaster.SendToPlayer(playerID, res)
 }
 
 func (b *WsBroadcaster) BroadcastToRoom(roomID string, eventName string, payload any, msgCode string) {
-	res := createWebSocketResult(eventName, payload, msgCode, "ko")
+	res := createWebSocketResult(EventType(eventName), payload, msgCode, "ko")
 	GlobalBroadcaster.BroadcastToRoom(roomID, res)
 }
 
@@ -66,13 +66,13 @@ func HandleGameAction(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	actionData, ok := event.Data["action"].(map[string]interface{})
-	if !ok {
+	var req GameActionRequest
+	if err := bindEventData(event, &req); err != nil || req.Action == nil {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
 
-	err := GlobalGameService.ProcessAction(ctx, u.RoomID, u.ID, actionData)
+	err := GlobalGameService.ProcessAction(ctx, u.RoomID, u.ID, req.Action)
 	if err != nil {
 		sendError(u, err.Error())
 		return
@@ -93,10 +93,10 @@ func HandleGameSync(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	sendResult(u, event.Type, map[string]any{
-		"roomId":    u.RoomID,
-		"gameMode":  gameMode,
-		"gameState": state,
+	sendResult(u, event.Type, GameSyncResponse{
+		RoomID:    u.RoomID,
+		GameMode:  gameMode,
+		GameState: state,
 	}, resp.SuccessCodeGameAction)
 }
 
@@ -106,13 +106,13 @@ func HandleGamePause(ctx context.Context, user *user.Session, event SocketEvent)
 
 // HandleGameInfo 현재 설정된 게임 모드 정보 (게임방법 조회)
 func HandleGameInfo(ctx context.Context, user *user.Session, event SocketEvent) {
-	gameModeStr, ok := event.Data["gameMode"].(string)
-	if !ok {
+	var req GameInfoRequest
+	if err := bindEventData(event, &req); err != nil || req.GameMode == "" {
 		sendError(user, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
 
-	gameMode, info, err := GlobalGameService.GetGameInfo(gameModeStr)
+	gameMode, info, err := GlobalGameService.GetGameInfo(req.GameMode)
 	if err != nil {
 		sendError(user, err.Error())
 		return

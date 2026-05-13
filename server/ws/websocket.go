@@ -96,7 +96,7 @@ func Websocket(c echo.Context) error {
 				currentUserSession = val.(*user.Session)
 			}
 			log.Logger.Infof("WebSocket Disconnected for ID: %s, Name: %s, Error: %v", currentUserSession.ID, currentUserSession.Name, err)
-			HandleUserDisconnect(c.Request().Context(), currentUserSession, SocketEvent{Type: "user.disconnect"})
+			HandleUserDisconnect(c.Request().Context(), currentUserSession, SocketEvent{Type: EventUserDisconnect})
 			break
 		}
 
@@ -112,19 +112,6 @@ func Websocket(c echo.Context) error {
 		dispatchSocketEvent(c.Request().Context(), currentUserSession, event)
 	}
 	return nil
-}
-
-type websocketInitData struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-}
-
-type SocketEvent struct {
-	Type   string                 `json:"type"`
-	RoomID string                 `json:"roomId"`
-	Name   string                 `json:"name"`
-	Data   map[string]interface{} `json:"data"`
-	Filter map[string]interface{} `json:"filter"`
 }
 
 func generateSocketID(c echo.Context, addr net.Addr) string {

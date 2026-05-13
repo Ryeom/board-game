@@ -16,8 +16,8 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	messageContent, ok := event.Data["message"].(string)
-	if !ok || messageContent == "" {
+	var req ChatSendRequest
+	if err := bindEventData(event, &req); err != nil || req.Message == "" {
 		sendError(u, resp.ErrorCodeChatEmptyMessage)
 		return
 	}
@@ -25,7 +25,7 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 	chatRecord := chat.ChatRecord{
 		SenderID:   u.ID,
 		SenderName: u.Name,
-		Message:    messageContent,
+		Message:    req.Message,
 		Timestamp:  time.Now(),
 	}
 
@@ -36,7 +36,7 @@ func HandleChatSend(ctx context.Context, u *user.Session, event SocketEvent) {
 	}
 
 	GlobalBroadcaster.BroadcastToRoom(u.RoomID, map[string]any{
-		"type": "chat.message",
+		"type": EventChatMessage,
 		"data": chatRecord,
 	})
 

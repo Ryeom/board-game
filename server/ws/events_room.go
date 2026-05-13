@@ -2,8 +2,8 @@ package ws
 
 import (
 	"context"
-	"time"
 
+	"github.com/Ryeom/board-game/internal/domain/room"
 	resp "github.com/Ryeom/board-game/internal/response"
 	"github.com/Ryeom/board-game/internal/service"
 	"github.com/Ryeom/board-game/internal/user"
@@ -14,55 +14,41 @@ var GlobalRoomService = service.NewRoomService(&WsBroadcaster{})
 
 // HandleRoomCreate 방 생성하기
 func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
-	// 1. 요청 데이터 파싱 및 유효성 검사
-	roomName, ok := event.Data["roomName"].(string)
-	if !ok || roomName == "" {
-		sendError(u, resp.ErrorCodeRoomInvalidRequest)
-		return
-	}
-	password, _ := event.Data["password"].(string)
-	maxPlayersFloat, ok := event.Data["maxPlayers"].(float64)
-	maxPlayers := int(maxPlayersFloat)
-	if !ok || maxPlayers < 2 || maxPlayers > 6 {
+	var req RoomCreateRequest
+	if err := bindEventData(event, &req); err != nil || req.RoomName == "" || req.MaxPlayers < 2 || req.MaxPlayers > 6 {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
 
-	// 2. 서비스 호출
-	r, err := GlobalRoomService.CreateRoom(ctx, u.ID, u.Name, roomName, password, maxPlayers)
+	r, err := GlobalRoomService.CreateRoom(ctx, u.ID, u.Name, req.RoomName, req.Password, req.MaxPlayers)
 	if err != nil {
 		sendError(u, err.Error()) // Service returns error code string
 		return
 	}
 
-	// 3. 방 목록 갱신 및 응답
 	rooms, _ := GlobalRoomService.GetRoomList(ctx)
-	sendResult(u, event.Type, map[string]interface{}{
-		"room_id":     r.ID,
-		"room_name":   r.RoomName,
-		"max_players": r.MaxPlayers,
-		"room_list":   rooms,
+	sendResult(u, event.Type, RoomCreateResponse{
+		RoomID:     r.ID,
+		RoomName:   r.RoomName,
+		MaxPlayers: r.MaxPlayers,
+		RoomList:   roomSummaries(rooms),
 	}, resp.SuccessCodeRoomCreate)
 }
 
 // HandleRoomJoin 방에 참여하기
 func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
-	// 1. 요청 데이터 파싱
-	roomID, ok := event.Data["roomId"].(string)
-	if !ok || roomID == "" {
+	var req RoomJoinRequest
+	if err := bindEventData(event, &req); err != nil || req.RoomID == "" {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
-	password, _ := event.Data["password"].(string)
 
-	// 2. 서비스 호출
-	r, err := GlobalRoomService.JoinRoom(ctx, u.ID, u.Name, roomID, password)
+	r, err := GlobalRoomService.JoinRoom(ctx, u.ID, u.Name, req.RoomID, req.Password)
 	if err != nil {
 		sendError(u, err.Error())
 		return
 	}
 
-	// 3. 클라이언트 응답 (Broadcasting is handled by Service)
 	sendResult(u, event.Type, r, resp.SuccessCodeRoomJoin)
 }
 
@@ -73,61 +59,24 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 		return
 	}
 
-	newHost, roomDeleted, err := GlobalRoomService.LeaveRoom(ctx, u.ID, u.RoomID)
+	roomID := u.RoomID
+	newHost, roomDeleted, err := GlobalRoomService.LeaveRoom(ctx, u.ID, roomID)
 	if err != nil {
 		sendError(u, err.Error())
 		return
 	}
 
-	// 본인에게 알림
-	// Service broadcasts to others. We confirm to the leaver.
-	sendResult(u, event.Type, map[string]any{
-		"type":    "room_left",
-		"roomId":  u.RoomID, // RoomID might be cleared in session, but we use the one we requested with? Wait, u.RoomID is cleared in Service?
-		// Service clears u.RoomID in Redis, but u object here is reference.
-		// Service loads session from Redis, updates it. 'u' here might be stale if Service re-fetched it?
-		// But 'u' is *user.Session. Use u.RoomID?
-		// Service code: "_ = user.SaveUserSession(session)" (fetches fresh session).
-		// So 'u' passed here is not modified by Service.
-		// However, we want to return the ID of the room they left.
-		"newHost": newHost,
-		"deleted": roomDeleted,
+	sendResult(u, event.Type, RoomLeaveResponse{
+		RoomID:  roomID,
+		NewHost: newHost,
+		Deleted: roomDeleted,
 	}, resp.SuccessCodeRoomLeave)
 }
 
 // HandleRoomList 현재 방 조회 (WebSocket)
 func HandleRoomList(ctx context.Context, u *user.Session, event SocketEvent) {
 	rooms, _ := GlobalRoomService.GetRoomList(ctx)
-
-	type roomSummary struct {
-		ID          string    `json:"id"`
-		RoomName    string    `json:"roomName"`
-		Host        string    `json:"host"`
-		PlayerNum   int       `json:"playerCount"`
-		MaxPlayers  int       `json:"maxPlayers"`
-		GameMode    string    `json:"gameMode"`
-		HasPassword bool      `json:"hasPassword"`
-		CreatedAt   time.Time `json:"createdAt"`
-	}
-
-	summaryList := make([]roomSummary, 0, len(rooms))
-	for _, r := range rooms {
-		summaryList = append(summaryList, roomSummary{
-			ID:          r.ID,
-			RoomName:    r.RoomName,
-			Host:        r.Host,
-			PlayerNum:   len(r.Players),
-			MaxPlayers:  r.MaxPlayers,
-			GameMode:    string(r.GameMode),
-			HasPassword: r.Password != "",
-			CreatedAt:   r.CreatedAt,
-		})
-	}
-
-	sendResult(u, event.Type, map[string]any{
-		"type": "room.list",
-		"data": summaryList,
-	}, resp.SuccessCodeRoomListFetch)
+	sendResult(u, event.Type, RoomListResponse{Rooms: roomSummaries(rooms)}, resp.SuccessCodeRoomListFetch)
 }
 
 // HandleRoomUpdate 방 설정 변경
@@ -173,26 +122,26 @@ func HandleRoomReady(ctx context.Context, u *user.Session, event SocketEvent) {
 
 // HandleRoomKick 방에서 퇴장
 func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
-	targetID, ok := event.Data["userId"].(string)
-	if !ok || targetID == "" {
+	var req RoomKickRequest
+	if err := bindEventData(event, &req); err != nil || req.UserID == "" {
 		sendError(u, resp.ErrorCodeRoomInvalidRequest)
 		return
 	}
 
 	// Service call
-	newHost, _, err := GlobalRoomService.KickUser(ctx, u.ID, u.RoomID, targetID)
+	newHost, _, err := GlobalRoomService.KickUser(ctx, u.ID, u.RoomID, req.UserID)
 	if err != nil {
 		sendError(u, err.Error())
 		return
 	}
 
-	sendResult(u, "room.kick", map[string]any{
-		"userId":  targetID,
+	sendResult(u, EventRoomKick, map[string]any{
+		"userId":  req.UserID,
 		"newHost": newHost,
 	}, resp.SuccessCodeRoomKick)
 
-	// Note: Service handles broadcasting "user.kicked". 
-	// Service also logic to notify the kicked user specifically via Broadcaster? 
+	// Note: Service handles broadcasting "user.kicked".
+	// Service also logic to notify the kicked user specifically via Broadcaster?
 	// Wait, Service Broadcaster typically supports "SendToPlayer".
 	// The original code did: "targetSession.Conn.WriteJSON(...)".
 	// The Service logic currently broadcasts "user.kicked" to room.
@@ -205,4 +154,21 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 	// Let's rely on Broadcast "user.kicked" which the client presumably handles?
 	// Or we can add it to Service later.
 	// For now, this is a reasonable subset.
+}
+
+func roomSummaries(rooms []*room.Room) []RoomSummary {
+	summaryList := make([]RoomSummary, 0, len(rooms))
+	for _, r := range rooms {
+		summaryList = append(summaryList, RoomSummary{
+			ID:          r.ID,
+			RoomName:    r.RoomName,
+			Host:        r.Host,
+			PlayerCount: len(r.Players),
+			MaxPlayers:  r.MaxPlayers,
+			GameMode:    string(r.GameMode),
+			HasPassword: r.Password != "",
+			CreatedAt:   r.CreatedAt,
+		})
+	}
+	return summaryList
 }

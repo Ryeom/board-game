@@ -174,8 +174,12 @@ func (s *GameService) ProcessAction(ctx context.Context, roomID string, userID s
 	}
 
 	actionData["playerId"] = userID
+	actionType, ok := actionData["actionType"].(string)
+	if !ok || actionType == "" {
+		return fmt.Errorf(resp.ErrorCodeRoomInvalidRequest)
+	}
 	gameEvent := hanabi.Event{
-		Type: actionData["actionType"].(string),
+		Type: actionType,
 		Data: actionData,
 	}
 
@@ -238,7 +242,7 @@ func (s *GameService) GetGameInfo(gameModeStr string) (game.Mode, map[string]any
 		return "", nil, fmt.Errorf(resp.ErrorCodeRoomInvalidRequest)
 	}
 	gameMode := game.Mode(gameModeStr)
-	
+
 	switch gameMode {
 	case game.ModeHanabi:
 		info := map[string]any{

@@ -8,7 +8,7 @@ import (
 
 // HandleSystemPing 핑 체크에 대한 응답
 func HandleSystemPing(ctx context.Context, user *user.Session, event SocketEvent) {
-	sendResult(user, "pong", map[string]string{"message": "pong"}, resp.SuccessCodeSystemOK) // 변경: "system.ping" -> "pong"
+	sendResult(user, EventSystemPong, map[string]string{"message": "pong"}, resp.SuccessCodeSystemOK)
 }
 
 func HandleSystemError(ctx context.Context, user *user.Session, event SocketEvent) {}
