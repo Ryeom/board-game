@@ -25,6 +25,7 @@ func HandleRoomCreate(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, err.Error()) // Service returns error code string
 		return
 	}
+	updateLiveRoomSession(u, r.ID, true)
 
 	rooms, _ := GlobalRoomService.GetRoomList(ctx)
 	sendResult(u, event.Type, RoomCreateResponse{
@@ -48,6 +49,7 @@ func HandleRoomJoin(ctx context.Context, u *user.Session, event SocketEvent) {
 		sendError(u, err.Error())
 		return
 	}
+	updateLiveRoomSession(u, r.ID, r.Host == u.ID)
 
 	sendResult(u, event.Type, r, resp.SuccessCodeRoomJoin)
 }
@@ -71,6 +73,7 @@ func HandleRoomLeave(ctx context.Context, u *user.Session, event SocketEvent) {
 		NewHost: newHost,
 		Deleted: roomDeleted,
 	}, resp.SuccessCodeRoomLeave)
+	updateLiveRoomSession(u, "", false)
 }
 
 // HandleRoomList 현재 방 조회 (WebSocket)
@@ -139,6 +142,7 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 		"userId":  req.UserID,
 		"newHost": newHost,
 	}, resp.SuccessCodeRoomKick)
+	updateLiveRoomSessionByID(req.UserID, "", false)
 
 	// Note: Service handles broadcasting "user.kicked".
 	// Service also logic to notify the kicked user specifically via Broadcaster?
@@ -154,6 +158,24 @@ func HandleRoomKick(ctx context.Context, u *user.Session, event SocketEvent) {
 	// Let's rely on Broadcast "user.kicked" which the client presumably handles?
 	// Or we can add it to Service later.
 	// For now, this is a reasonable subset.
+}
+
+func updateLiveRoomSession(session *user.Session, roomID string, isHost bool) {
+	session.RoomID = roomID
+	session.IsHost = isHost
+	ActiveSessions().Store(session.ID, session)
+}
+
+func updateLiveRoomSessionByID(userID string, roomID string, isHost bool) {
+	val, ok := ActiveSessions().Load(userID)
+	if !ok {
+		return
+	}
+	session, ok := val.(*user.Session)
+	if !ok {
+		return
+	}
+	updateLiveRoomSession(session, roomID, isHost)
 }
 
 func roomSummaries(rooms []*room.Room) []RoomSummary {

@@ -1,0 +1,46 @@
+package ws
+
+const (
+	EventRoomCreate EventType = "room.create"
+	EventRoomJoin   EventType = "room.join"
+	EventRoomLeave  EventType = "room.leave"
+	EventRoomList   EventType = "room.list"
+	EventRoomUpdate EventType = "room.update"
+	EventRoomReady  EventType = "room.ready"
+	EventRoomKick   EventType = "room.kick"
+
+	EventUserIdentify     EventType = "user.identify"
+	EventUserUpdate       EventType = "user.update"
+	EventUserDisconnect   EventType = "user.disconnect"
+	EventUserDisconnected EventType = "user.disconnected"
+	EventUserStatus       EventType = "user.status"
+	EventUserLeft         EventType = "user.left"
+	EventUserKicked       EventType = "user.kicked"
+	EventUserReconnected  EventType = "user.reconnected"
+
+	EventGameStart           EventType = "game.start"
+	EventGameStarted         EventType = "game.started"
+	EventGameEnd             EventType = "game.end"
+	EventGameEnded           EventType = "game.ended"
+	EventGameAction          EventType = "game.action"
+	EventGameActionSync      EventType = "game.action.sync"
+	EventGameActionSucceeded EventType = "game.action.succeeded"
+	EventGameSync            EventType = "game.sync"
+	EventGamePause           EventType = "game.pause"
+	EventGameInfo            EventType = "game.info"
+	EventGameTimerStarted    EventType = "game.timer.started"
+	EventGameTimerReset      EventType = "game.timer.reset"
+	EventGameTimerExpired    EventType = "game.timer.expired"
+
+	EventChatSend    EventType = "chat.send"
+	EventChatMessage EventType = "chat.message"
+	EventChatHistory EventType = "chat.history"
+	EventChatMute    EventType = "chat.mute"
+
+	EventSystemPing   EventType = "system.ping"
+	EventSystemPong   EventType = "system.pong"
+	EventSystemError  EventType = "system.error"
+	EventSystemNotice EventType = "system.notice"
+	EventSystemSync   EventType = "system.sync"
+	EventError        EventType = "error"
+)
