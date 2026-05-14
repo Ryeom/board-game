@@ -38,7 +38,9 @@ func (t *TurnTimer) Start() {
 		}
 		t.stopped = true
 		t.mu.Unlock()
-		t.onExpire(t.roomID)
+		if t.onExpire != nil {
+			t.onExpire(t.roomID)
+		}
 	})
 }
 
